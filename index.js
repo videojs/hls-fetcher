@@ -1,60 +1,72 @@
+var fs = require('fs');
+var path = require('path');
+var mkdirp = require('mkdirp');
 var fetch = require('fetch');
-
-function parseResource (tagLine, resourceLine, localManifest, manifestObj) {
-  // if tagLine starts with #EXTINF
-  //     create an object with a resource type of 'segment' and an absolute URI
-  // else if tagLine starts with #EXT-X-STREAM-INF
-  //     create an object with a resource type of 'manifest' and an absolute URI
-
-  // push localized URI to localManifest
-}
-
-function parsePlaylist (playlist) {
-  var localManifest = [];
-  var resources = [];
-
-  // Split into lines
-  // For each line
-  //   push to localManifest
-  //   if starts with #EXTINF or #EXT-X-STREAM-INF
-  //     call parseResource with both lines and object
-
-  /* OUTPUT:
-    {
-      localManifest: <string with purely cwd-relative uris>,
-      resources: [
-        {
-          uri: <absolute uri>,
-          type: {'segment' | 'manifest'}
-        }
-      ]
-    }
-  */ 
-  return {
-    localManifest: localManifest.join('\n'),
-    resources: resources
-  };
-}
+var parseManifest = require('./parse.js');
 
 function getCWDName (parentUri, localUri) {
-  // parent: http://foo.bar/baz/index.m3u8
-  // local: http://foo.bar/baz/sub.m3u8
-  // return 'sub'
+  // Do I need to use node's URL object?
+  var parentPaths = path.dirname(parentUri).split('/');
+  var localPaths = path.dirname(localUri).split('/');
 
-  // parent: http://foo.bar/baz/index.m3u8
-  // local: http://foo.bar/baz/quux/sub.m3u8
-  // return 'quux'
+  var lookFor = parentPaths.pop();
+  var i = localPaths.length;
+
+  while (i--) {
+    if (localPaths[i] === lookFor) {
+      break;
+    }
+  }
+
+  // No unique path-part found, use filename
+  if (i === localPaths.length - 1) {
+    return path.basename(localUri, path.extname(localUri));
+  }
+
+  return localPaths.slice(i + 1).join('_');
 }
 
 function getIt (cwd, uri) {
-  //   Fetch playlist
-  //   Parse playlist
+  var playlistFilename = path.basename(uri);
 
-  //   For each resource in manifest.resources
-  //     If resource.type is 'segment'
-  //       Fetch it to CWD (streaming)
-  //     Else
-  //       Create subCWD from URI
-  //       If subCWD does not exist, make subCWD (mkdirp)
-  //       Call `getIt` with subCWD and resource uri
+  // Fetch playlist
+  fetch.fetchUrl('uri', function getPlaylist (err, meta, body) {
+    if (err) {
+      // TODO: Error handling? reporting?
+      return;
+    }
+
+    //   Parse playlist
+    var manifest = parseManifest(uri, body);
+
+    // Save manifest
+    fs.writeSync(path.resolve(cwd, playlistFilename), manifest.localManifest);
+
+    //   For each resource in manifest.resources
+    manifest.resources.forEach(function (resource) {
+      if (resource.type === 'segment') {
+        var filename = path.basename(resource.uri);
+
+        // Fetch it to CWD (streaming)
+        var segmentStream = new fetch.FetchStream(resource.uri);
+        var outputStream = fs.createWriteStream(path.resolve(cwd, filename));
+
+        segmentStream.pipe(outputStream);
+        // TODO: Error handling? reporting?
+      } else {
+        // Create subCWD from URI
+        var subCWD = getCWDName(uri, resource.uri);
+        // If subCWD does not exist, make subCWD (mkdirp)
+        mkdirp(path.resolve(subCWD), function (err) {
+            if (err) {
+              // TODO: Error handling? reporting?
+              return;
+            }
+
+            // Call `getIt` with subCWD and resource uri
+            getIt(subCWD, resource.uri);
+        });
+      }
+    });
+  });
 }
