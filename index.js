@@ -30,18 +30,18 @@ function getIt (cwd, uri) {
   var playlistFilename = path.basename(uri);
 
   // Fetch playlist
-  fetch.fetchUrl('uri', function getPlaylist (err, meta, body) {
+  fetch.fetchUrl(uri, function getPlaylist (err, meta, body) {
     if (err) {
       // TODO: Error handling? reporting?
       return;
     }
 
     //   Parse playlist
-    var manifest = parseManifest(uri, body);
-
+    var manifest = parseManifest(uri, body.toString());
     // Save manifest
-    fs.writeSync(path.resolve(cwd, playlistFilename), manifest.localManifest);
+    fs.writeFileSync(path.resolve(cwd, playlistFilename), manifest.localManifest);
 
+    console.log(manifest);
     //   For each resource in manifest.resources
     manifest.resources.forEach(function (resource) {
       if (resource.type === 'segment') {
@@ -70,3 +70,5 @@ function getIt (cwd, uri) {
     });
   });
 }
+
+module.exports = getIt;

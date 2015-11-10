@@ -1,3 +1,6 @@
+var path = require('path');
+var URL = require('url');
+
 function parseResource (tagLine, resourceLine, manifestUri) {
   var resource = {
     type: 'unknown',
@@ -11,8 +14,8 @@ function parseResource (tagLine, resourceLine, manifestUri) {
   }
 
   // make our uri absolute if we need to
-  if (!resource.match(/^https?:\/\//i)) {
-    resource.uri = manifestUri + resource.uri;
+  if (!resourceLine.match(/^https?:\/\//i)) {
+    resource.uri = manifestUri + '/' + resource.uri;
   }
 
   return resource;
@@ -21,6 +24,7 @@ function parseResource (tagLine, resourceLine, manifestUri) {
 function parseManifest (manifestUri, manifestData) {
   var manifestLines = [];
   var resources = [];
+  var rootUri = path.dirname(manifestUri);
 
   // Split into lines
   var lines = manifestData.split('\n');
@@ -28,10 +32,12 @@ function parseManifest (manifestUri, manifestData) {
   // determine resources, and store all lines
   for(var i = 0; i < lines.length; i++) {
     var currentLine = lines[i];
-    localManifest.push(currentLine);
-    if(line.match(/^#EXTINF/) || line.match(/^#EXT-X-STREAM-INF/)) {
+    manifestLines.push(currentLine);
+    if(currentLine.match(/^#EXTINF/) || currentLine.match(/^#EXT-X-STREAM-INF/)) {
       i++;
-      resources.push(parseResource(currentLine, lines[i], manifestUri));
+      resources.push(parseResource(currentLine, lines[i], rootUri));
+      var filename = path.basename(lines[i]);
+      manifestLines.push(filename);
     }
   }
 
@@ -47,9 +53,9 @@ function parseManifest (manifestUri, manifestData) {
     }
   */
   return {
-    localManifest: localManifest.join('\n'),
+    localManifest: manifestLines.join('\n'),
     resources: resources
   };
 }
 
-module.export = parseManifest;
+module.exports = parseManifest;
