@@ -4,18 +4,18 @@ var URL = require('url');
 function parseResource (tagLine, resourceLine, manifestUri) {
   var resource = {
     type: 'unknown',
-    uri: resourceLine,
+    line: resourceLine,
   };
 
   if(tagLine.match(/^#EXTINF/i)) {
     resource.type = 'segment';
   } else if (tagLine.match(/^#EXT-X-STREAM-INF/i)) {
-    resource.type = 'manifest';
+    resource.type = 'playlist';
   }
 
   // make our uri absolute if we need to
   if (!resourceLine.match(/^https?:\/\//i)) {
-    resource.uri = manifestUri + '/' + resource.uri;
+    resource.line = manifestUri + '/' + resource.line;
   }
 
   return resource;
@@ -23,7 +23,6 @@ function parseResource (tagLine, resourceLine, manifestUri) {
 
 function parseManifest (manifestUri, manifestData) {
   var manifestLines = [];
-  var resources = [];
   var rootUri = path.dirname(manifestUri);
 
   // Split into lines
@@ -32,30 +31,16 @@ function parseManifest (manifestUri, manifestData) {
   // determine resources, and store all lines
   for(var i = 0; i < lines.length; i++) {
     var currentLine = lines[i];
-    manifestLines.push(currentLine);
+    manifestLines.push({type: 'tag', line: currentLine});
     if(currentLine.match(/^#EXTINF/) || currentLine.match(/^#EXT-X-STREAM-INF/)) {
       i++;
-      resources.push(parseResource(currentLine, lines[i], rootUri));
-      var filename = path.basename(lines[i]);
-      manifestLines.push(filename);
+      if (i < lines.length) {
+        manifestLines.push(parseResource(currentLine, lines[i], rootUri));
+      }
     }
   }
 
-  /* OUTPUT:
-    {
-      localManifest: <string with purely cwd-relative uris>,
-      resources: [
-        {
-          uri: <absolute uri>,
-          type: {'segment' | 'manifest'}
-        }
-      ]
-    }
-  */
-  return {
-    localManifest: manifestLines.join('\n'),
-    resources: resources
-  };
+  return manifestLines;
 }
 
 module.exports = parseManifest;
