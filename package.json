@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/imbcmdth/hls-fetcher#readme",
   "dependencies": {
+    "async": "^1.5.0",
     "fetch": "^0.3.6",
     "mkdirp": "^0.5.1"
   }
