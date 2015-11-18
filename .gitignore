@@ -1,3 +1,4 @@
 node_modules
 output/*
 !output/test.js
+npm-debug.log

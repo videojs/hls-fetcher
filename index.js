@@ -5,7 +5,7 @@ var fetch = require('fetch');
 var parseManifest = require('./parse.js');
 var async = require('async');
 
-var CONCURRENT_FETCH_LIMIT = 5;
+var DEFAULT_CONCURRENCY = 5;
 
 function getCWDName (parentUri, localUri) {
   // Do I need to use node's URL object?
@@ -41,13 +41,16 @@ function createManifestText (manifest, rootUri) {
   }).join('\n');
 }
 
-function getIt (cwd, uri, done) {
+function getIt (options, done) {
+  var uri = options.uri;
+  var cwd = options.cwd;
+  var concurrency = options.concurrency || DEFAULT_CONCURRENCY;
   var playlistFilename = path.basename(uri);
 
   // Fetch playlist
   fetch.fetchUrl(uri, function getPlaylist (err, meta, body) {
     if (err) {
-      // TODO: Error handling? reporting?
+      console.error('Error fetching url:', uri);
       return done(err);
     }
 
@@ -66,7 +69,7 @@ function getIt (cwd, uri, done) {
 
     async.series([
       function fetchSegments (next) {
-        async.eachLimit(segments, CONCURRENT_FETCH_LIMIT, function (resource, done) {
+        async.eachLimit(segments, concurrency, function (resource, done) {
           var filename = path.basename(resource.line);
 
           console.log('Start fetching', resource.line);
@@ -76,10 +79,12 @@ function getIt (cwd, uri, done) {
           var outputStream = fs.createWriteStream(path.resolve(cwd, filename));
 
           segmentStream.pipe(outputStream);
+
           segmentStream.on('error', function (err) {
-            console.log('Fetching of', resource.line, 'failed with error:', err);
+            console.error('Fetching of url:', resource.line);
             return done(err);
           });
+
           segmentStream.on('end', function () {
             console.log('Finished fetching', resource.line);
             return done();
@@ -90,15 +95,22 @@ function getIt (cwd, uri, done) {
         async.eachSeries(playlists, function (resource, done) {
           // Create subCWD from URI
           var subCWD = getCWDName(uri, resource.line);
-          // If subCWD does not exist, make subCWD (mkdirp)
-          mkdirp(path.resolve(subCWD), function (err) {
-              if (err) {
-                // TODO: Error handling? reporting?
-                return done(err);
-              }
+          var subDir = path.resolve(cwd, subCWD);
 
-              // Call `getIt` with subCWD and resource uri
-              getIt(subCWD, resource.line, done);
+          // If subCWD does not exist, make subCWD (mkdirp)
+          mkdirp(subDir, function (err) {
+            if (err) {
+              console.error('Error creating output path:', subDir);
+              return done(err);
+            }
+
+            // Call `getIt` with subCWD and resource uri
+            getIt({
+              cwd: subDir,
+              uri: resource.line,
+              concurrency: concurrency
+              },
+              done);
           });
         }, next);
       }

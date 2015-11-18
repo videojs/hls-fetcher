@@ -1,17 +1,23 @@
 {
   "name": "hls-fetcher",
   "version": "1.0.0",
-  "description": "Fetch HLS segments from an m3u8 manifest",
+  "description": "Fetch HLS segments from an m3u8 playlist",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "hls-fetcher": "./bin/cli.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/imbcmdth/hls-fetcher.git"
   },
-  "author": "Jon-Carlos Rivera & Brandon Casey",
-  "license": "ISC",
+  "contributors": [
+    "Jon-Carlos Rivera <jon.carlos.rivera@gmail.com> (http://jon-carlos.com/)",
+    "Brandon Casey <brandonocasey@gmail.com> (https://github.com/brandonocasey)"
+  ],
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/imbcmdth/hls-fetcher/issues"
   },
@@ -19,6 +25,7 @@
   "dependencies": {
     "async": "^1.5.0",
     "fetch": "^0.3.6",
-    "mkdirp": "^0.5.1"
+    "mkdirp": "^0.5.1",
+    "pessimist": "^0.3.5"
   }
 }
