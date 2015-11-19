@@ -70,7 +70,8 @@ function getIt (options, done) {
     async.series([
       function fetchSegments (next) {
         async.eachLimit(segments, concurrency, function (resource, done) {
-          var filename = path.basename(resource.line);
+          var trimmedUri = resource.line.slice(0, resource.line.lastIndexOf('.ts') + 3);
+          var filename = path.basename(trimmedUri);
 
           console.log('Start fetching', resource.line);
 
