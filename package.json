@@ -1,6 +1,6 @@
 {
   "name": "@brightcove/hls-fetcher",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Fetch HLS segments from an m3u8 playlist",
   "main": "index.js",
   "scripts": {
