@@ -3,6 +3,7 @@ var path = require('path');
 var mkdirp = require('mkdirp');
 var fetch = require('fetch');
 var parseManifest = require('./parse.js');
+var Decrypter = require('./decrypter.js');
 var async = require('async');
 
 var DEFAULT_CONCURRENCY = 5;
@@ -74,21 +75,41 @@ function getIt (options, done) {
 
           console.log('Start fetching', resource.line);
 
-          // Fetch it to CWD (streaming)
-          var segmentStream = new fetch.FetchStream(resource.line);
-          var outputStream = fs.createWriteStream(path.resolve(cwd, filename));
+          if (resource.encrypted) {
+            // Fetch the key
 
-          segmentStream.pipe(outputStream);
+            fetch.fetchUrl(resource.keyURI, function (err, meta, keyBody) {
+              if (err) {
+                return done(err);
+              }
+              // Convert it to an Uint32Array
+              var key_bytes = new Uint32Array([
+                keyBody.readUInt32BE(0),
+                keyBody.readUInt32BE(4),
+                keyBody.readUInt32BE(8),
+                keyBody.readUInt32BE(12)
+              ]);
 
-          segmentStream.on('error', function (err) {
-            console.error('Fetching of url:', resource.line);
-            return done(err);
-          });
+              // Fetch segment data
 
-          segmentStream.on('end', function () {
-            console.log('Finished fetching', resource.line);
-            return done();
-          });
+              fetch.fetchUrl(resource.line, function (err, meta, segmentBody) {
+                if (err) {
+                  return done(err);
+                }
+                // Convert it to an Uint8Array
+                var segmentData = new Uint8Array(segmentBody);
+
+                // Use key, iv, and segment data to decrypt segment into Uint8Array
+
+                var decryptedSegment = new Decrypter(segmentData, key_bytes, resource.IV, function (err, data) {
+                  // Save Uint8Array to disk
+                  return fs.writeFile(path.resolve(cwd, filename), new Buffer(data), done);
+                });
+              });
+            });
+          } else {
+            return streamToDisk(resource, filename, done);
+          }
         }, next);
       },
       function fetchPlaylists (next) {
@@ -115,6 +136,24 @@ function getIt (options, done) {
         }, next);
       }
     ], done);
+  });
+}
+
+function streamToDisk (resource, filename, done) {
+  // Fetch it to CWD (streaming)
+  var segmentStream = new fetch.FetchStream(resource.line);
+  var outputStream = fs.createWriteStream(path.resolve(cwd, filename));
+
+  segmentStream.pipe(outputStream);
+
+  segmentStream.on('error', function (err) {
+    console.error('Fetching of url:', resource.line);
+    return done(err);
+  });
+
+  segmentStream.on('end', function () {
+    console.log('Finished fetching', resource.line);
+    return done();
   });
 }
 
