@@ -13,6 +13,9 @@ function parseEncryption(tagLine, manifestUri) {
     begunEncryption = true;
     keyURI = encryptionInfo[1];
     keyURI = keyURI.substring(5, keyURI.length - 1);
+    if (!keyURI.match(/^https?:\/\//i)) {
+      keyURI = manifestUri + '/' + keyURI;
+    }
     if (encryptionInfo.length > 2) {
       //we have an IV
       IV = encryptionInfo[2]
@@ -99,7 +102,7 @@ function parseManifest (manifestUri, manifestData) {
     var currentLine = lines[i];
     manifestLines.push({type: 'tag', line: currentLine});
     if (currentLine.match(/^#EXT-X-KEY/i)) {
-      parseEncryption(currentLine, rootUri);
+      parseEncryption(currentLine, manifestUri);
     }
 
     else if(currentLine.match(/^#EXT-X-MEDIA-SEQUENCE/i)) {

@@ -66,10 +66,25 @@ test('parseManifest correctly identifies segment IV based on media sequence numb
 });
 
 /*   4. Test alternating keys for AES-128 encryption */
-
-/*   5. Test non-absolute key URI */
-
-
+test('parseManifest correctly identifies alternating keys for AES-128 encryption', function(t) {
+  var
+    manifestData = "#EXT-X-KEY:METHOD=AES-128,URI='index-encryption-00001.key',IV=0x00000000000000000000000000000000\n#EXTINF:10,\nindex-00001.ts\n#EXT-X-KEY:METHOD=AES-128,URI='index-encryption-00002.key',IV=0x00000000000000000000000000000000\n#EXTINF:10,\nindex-00002.ts",
+    manifestURI = "http://api323-phx.unicornmedia.com",
+    manifestLines = parse.parseManifest(manifestURI, manifestData),
+    counter = 0;
+    for(var i = 0; i < manifestLines.length; i++) {
+      if(manifestLines[i].type == 'segment') {
+        if (counter == 0) {
+          //check first encryption key
+          t.equal(manifestLines[i].keyURI, "http://api323-phx.unicornmedia.com/index-encryption-00001.key");
+        } else {
+          t.equal(manifestLines[i].keyURI, "http://api323-phx.unicornmedia.com/index-encryption-00002.key");
+        }
+        counter += 1;
+      }
+    }
+    t.end();
+});
 
 /*End encrypted segment fetching tests */
 
