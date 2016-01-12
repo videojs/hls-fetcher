@@ -5,6 +5,7 @@ var fetch = require('fetch');
 var parseManifest = require('./parse.js');
 var Decrypter = require('./decrypter.js');
 var async = require('async');
+var fileIndex = 1;
 
 var DEFAULT_CONCURRENCY = 5;
 
@@ -30,6 +31,23 @@ function getCWDName (parentUri, localUri) {
   return localPaths.slice(i + 1).join('_');
 }
 
+function preparePath (filename, cwd) {
+  var savePath = path.resolve(cwd, filename);
+
+    if (savePath.indexOf('?') != -1) {
+      savePath = savePath.split('?')[0];
+    }
+    if (fs.existsSync(savePath)) {
+      filename = filename.split('.')[0] + fileIndex.toString();
+      savePath = path.resolve(cwd, filename + '.ts');
+      fileIndex += 1;
+    }
+    if (savePath.indexOf('?') != -1) {
+      savePath = savePath.split('?')[0];
+    }
+    return savePath;
+}
+
 function createManifestText (manifest, rootUri) {
   return manifest.map(function (line) {
     if (line.type === 'playlist') {
@@ -49,7 +67,7 @@ function getIt (options, done) {
   var playlistFilename = path.basename(uri);
 
   // Fetch playlist
-  fetch.fetchUrl(uri, function getPlaylist (err, meta, body) {
+  fetch.fetchUrl(uri, {timeout:180000}, function getPlaylist (err, meta, body) {
     if (err) {
       console.error('Error fetching url:', uri);
       return done(err);
@@ -59,7 +77,9 @@ function getIt (options, done) {
     var manifest = parseManifest(uri, body.toString());
 
     // Save manifest
-    fs.writeFileSync(path.resolve(cwd, playlistFilename), createManifestText(manifest, uri));
+    var savePath = preparePath(playlistFilename, cwd);
+
+    fs.writeFileSync(savePath, createManifestText(manifest, uri));
 
     var segments = manifest.filter(function (resource) {
       return resource.type === 'segment';
@@ -78,7 +98,7 @@ function getIt (options, done) {
           if (resource.encrypted) {
             // Fetch the key
 
-            fetch.fetchUrl(resource.keyURI, function (err, meta, keyBody) {
+            fetch.fetchUrl(resource.keyURI, {timeout:180000}, function (err, meta, keyBody) {
               if (err) {
                 return done(err);
               }
@@ -92,7 +112,7 @@ function getIt (options, done) {
 
               // Fetch segment data
 
-              fetch.fetchUrl(resource.line, function (err, meta, segmentBody) {
+              fetch.fetchUrl(resource.line, {timeout:180000},function (err, meta, segmentBody) {
                 if (err) {
                   return done(err);
                 }
@@ -102,13 +122,15 @@ function getIt (options, done) {
                 // Use key, iv, and segment data to decrypt segment into Uint8Array
 
                 var decryptedSegment = new Decrypter(segmentData, key_bytes, resource.IV, function (err, data) {
-                  // Save Uint8Array to disk
-                  return fs.writeFile(path.resolve(cwd, filename), new Buffer(data), done);
+
+                var savePath = preparePath(filename, cwd);
+
+                return fs.writeFile(savePath, new Buffer(data), done);
                 });
               });
             });
           } else {
-            return streamToDisk(resource, filename, done);
+            return streamToDisk(resource, filename, done, cwd);
           }
         }, next);
       },
@@ -139,7 +161,7 @@ function getIt (options, done) {
   });
 }
 
-function streamToDisk (resource, filename, done) {
+function streamToDisk (resource, filename, done, cwd) {
   // Fetch it to CWD (streaming)
   var segmentStream = new fetch.FetchStream(resource.line);
   var outputStream = fs.createWriteStream(path.resolve(cwd, filename));

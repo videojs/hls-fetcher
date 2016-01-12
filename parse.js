@@ -3,15 +3,25 @@ var URL = require('url');
 var IV;
 var keyURI;
 var begunEncryption = false;
+var sequenceNumber = -1;
+var useSequence = false;
 
 function parseEncryption(tagLine, manifestUri) {
 
   if (tagLine.match(/^#EXT-X-KEY/i) && tagLine.match(/AES/)) {
+    var encryptionInfo = tagLine.split(',');
     begunEncryption = true;
-    keyURI = tagLine.split(',')[1];
+    keyURI = encryptionInfo[1];
     keyURI = keyURI.substring(5, keyURI.length - 1);
-    IV = tagLine.split(',')[2]
-    IV = IV.substring(3, IV.length - 1);
+    if (encryptionInfo.length > 2) {
+      //we have an IV
+      IV = encryptionInfo[2]
+      IV = IV.substring(3, IV.length - 1);
+    } else {
+      //use the media sequence number
+      useSequence = true;
+    }
+
   }
 }
 
@@ -26,6 +36,7 @@ function parseResource (tagLine, resourceLine, manifestUri) {
 
   if(tagLine.match(/^#EXTINF/i)) {
     resource.type = 'segment';
+    sequenceNumber += 1;
   } else if (tagLine.match(/^#EXT-X-STREAM-INF/i)) {
     resource.type = 'playlist';
   }
@@ -33,7 +44,11 @@ function parseResource (tagLine, resourceLine, manifestUri) {
   if (begunEncryption) {
     resource.encrypted = true;
     resource.keyURI = keyURI;
-    resource.IV = IV;
+    if (useSequence) {
+      resource.IV = sequenceNumber.toString();
+    } else {
+      resource.IV = IV;
+    }
     // make our uri absolute if we need to
     if (!resource.keyURI.match(/^https?:\/\//i)) {
       resource.keyURI = manifestUri + '/' + resource.keyURI;
@@ -72,6 +87,9 @@ function parseManifest (manifestUri, manifestData) {
     manifestLines.push({type: 'tag', line: currentLine});
     if (currentLine.match(/^#EXT-X-KEY/i)) {
       parseEncryption(currentLine, rootUri);
+    }
+    else if(currentLine.match(/^#EXT-X-MEDIA-SEQUENCE/i)) {
+      sequenceNumber = parseInt(currentLine.split(':')[1]);
     }
     else if(currentLine.match(/^#EXTINF/) || currentLine.match(/^#EXT-X-STREAM-INF/)) {
       i++;
