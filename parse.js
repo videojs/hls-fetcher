@@ -54,17 +54,29 @@ function parseResource (tagLine, resourceLine, manifestUri) {
       resource.keyURI = manifestUri + '/' + resource.keyURI;
     }
   }
+  var usingHex = false;
   if (resource.IV) {
     if (resource.IV.substring(0,2) === '0x') {
       resource.IV = resource.IV.substring(2);
+      usingHex = true;
     }
+    if (usingHex) {
+      resource.IV = resource.IV.match(/.{8}/g);
+      resource.IV[0] = parseInt(resource.IV[0], 16);
+      resource.IV[1] = parseInt(resource.IV[1], 16);
+      resource.IV[2] = parseInt(resource.IV[2], 16);
+      resource.IV[3] = parseInt(resource.IV[3], 16);
 
-    resource.IV = resource.IV.match(/.{8}/g);
-    resource.IV[0] = parseInt(resource.IV[0], 16);
-    resource.IV[1] = parseInt(resource.IV[1], 16);
-    resource.IV[2] = parseInt(resource.IV[2], 16);
-    resource.IV[3] = parseInt(resource.IV[3], 16);
+    } else {
+      var tempIV = resource.IV;
+      resource.IV = [];
+      resource.IV[0] = 0;
+      resource.IV[1] = 0;
+      resource.IV[2] = 0;
+      resource.IV[3] = parseInt(tempIV, 10);
+    }
     resource.IV = new Uint32Array(resource.IV);
+
   }
 
   // make our uri absolute if we need to
@@ -75,6 +87,7 @@ function parseResource (tagLine, resourceLine, manifestUri) {
 }
 
 function parseManifest (manifestUri, manifestData) {
+  sequenceNumber = -1;
   var manifestLines = [];
   var rootUri = path.dirname(manifestUri);
 
@@ -88,6 +101,7 @@ function parseManifest (manifestUri, manifestData) {
     if (currentLine.match(/^#EXT-X-KEY/i)) {
       parseEncryption(currentLine, rootUri);
     }
+
     else if(currentLine.match(/^#EXT-X-MEDIA-SEQUENCE/i)) {
       sequenceNumber = parseInt(currentLine.split(':')[1]);
     }
@@ -102,4 +116,4 @@ function parseManifest (manifestUri, manifestData) {
   return manifestLines;
 }
 
-module.exports = parseManifest;
+module.exports = {parseManifest:parseManifest, parseResource:parseResource, parseEncryption:parseEncryption};

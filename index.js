@@ -2,7 +2,7 @@ var fs = require('fs');
 var path = require('path');
 var mkdirp = require('mkdirp');
 var fetch = require('fetch');
-var parseManifest = require('./parse.js');
+var parse = require('./parse.js');
 var Decrypter = require('./decrypter.js');
 var async = require('async');
 var fileIndex = 1;
@@ -74,7 +74,7 @@ function getIt (options, done) {
     }
 
     // Parse playlist
-    var manifest = parseManifest(uri, body.toString());
+    var manifest = parse.parseManifest(uri, body.toString());
 
     // Save manifest
     var savePath = preparePath(playlistFilename, cwd);
@@ -179,4 +179,4 @@ function streamToDisk (resource, filename, done, cwd) {
   });
 }
 
-module.exports = getIt;
+module.exports = {getIt:getIt, getCWDName:getCWDName, createManifestText:createManifestText};
