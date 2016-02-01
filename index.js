@@ -8,6 +8,7 @@ var async = require('async');
 var fileIndex = 1;
 
 var DEFAULT_CONCURRENCY = 5;
+var duplicateFileCount = 0;
 
 function getCWDName (parentUri, localUri) {
   // Do I need to use node's URL object?
@@ -77,9 +78,11 @@ function getIt (options, done) {
     var manifest = parse.parseManifest(uri, body.toString());
 
     // Save manifest
-    var savePath = preparePath(playlistFilename, cwd);
-
-    fs.writeFileSync(savePath, createManifestText(manifest, uri));
+    if (playlistFilename.match(/\?/)) {
+      playlistFilename = playlistFilename.match(/^.+\..+\?/)[0];
+      playlistFilename = playlistFilename.substring(0, playlistFilename.length - 1);
+    }
+    fs.writeFileSync(path.resolve(cwd, playlistFilename), createManifestText(manifest, uri));
 
     var segments = manifest.filter(function (resource) {
       return resource.type === 'segment';
@@ -164,6 +167,16 @@ function getIt (options, done) {
 function streamToDisk (resource, filename, done, cwd) {
   // Fetch it to CWD (streaming)
   var segmentStream = new fetch.FetchStream(resource.line);
+  //handle duplicate filenames & remove query parameters
+  if (filename.match(/\?/)) {
+    filename = filename.match(/^.+\..+\?/)[0];
+    filename = filename.substring(0, filename.length - 1);
+  }
+  if(fs.existsSync(path.resolve(cwd, filename))) {
+    filename = filename.split('.')[0] + duplicateFileCount + '.' + filename.split('.')[1];
+    duplicateFileCount += 1;
+  }
+
   var outputStream = fs.createWriteStream(path.resolve(cwd, filename));
 
   segmentStream.pipe(outputStream);
