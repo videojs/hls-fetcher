@@ -32,23 +32,6 @@ function getCWDName (parentUri, localUri) {
   return localPaths.slice(i + 1).join('_');
 }
 
-function preparePath (filename, cwd) {
-  var savePath = path.resolve(cwd, filename);
-
-    if (savePath.indexOf('?') != -1) {
-      savePath = savePath.split('?')[0];
-    }
-    if (fs.existsSync(savePath)) {
-      filename = filename.split('.')[0] + fileIndex.toString();
-      savePath = path.resolve(cwd, filename + '.ts');
-      fileIndex += 1;
-    }
-    if (savePath.indexOf('?') != -1) {
-      savePath = savePath.split('?')[0];
-    }
-    return savePath;
-}
-
 function createManifestText (manifest, rootUri) {
   return manifest.map(function (line) {
     if (line.type === 'playlist') {
@@ -82,6 +65,10 @@ function getIt (options, done) {
       playlistFilename = playlistFilename.match(/^.+\..+\?/)[0];
       playlistFilename = playlistFilename.substring(0, playlistFilename.length - 1);
     }
+    if (!playlistFilename.match(/.+m3u8$/i)) {
+      playlistFilename = "playlist" +  ".m3u8";
+    }
+
     fs.writeFileSync(path.resolve(cwd, playlistFilename), createManifestText(manifest, uri));
 
     var segments = manifest.filter(function (resource) {
@@ -95,9 +82,7 @@ function getIt (options, done) {
       function fetchSegments (next) {
         async.eachLimit(segments, concurrency, function (resource, done) {
           var filename = path.basename(resource.line);
-
           console.log('Start fetching', resource.line);
-
           if (resource.encrypted) {
             // Fetch the key
 
@@ -125,10 +110,17 @@ function getIt (options, done) {
                 // Use key, iv, and segment data to decrypt segment into Uint8Array
 
                 var decryptedSegment = new Decrypter(segmentData, key_bytes, resource.IV, function (err, data) {
+                  // Save Uint8Array to disk
 
-                var savePath = preparePath(filename, cwd);
-
-                return fs.writeFile(savePath, new Buffer(data), done);
+                  if (filename.match(/\?/)) {
+                    filename = filename.match(/^.+\..+\?/)[0];
+                    filename = filename.substring(0, filename.length - 1);
+                  }
+                  if(fs.existsSync(path.resolve(cwd, filename))) {
+                    filename = filename.split('.')[0] + duplicateFileCount + '.' + filename.split('.')[1];
+                    duplicateFileCount += 1;
+                  }
+                  return fs.writeFile(path.resolve(cwd, filename), new Buffer(data), done);
                 });
               });
             });
@@ -172,8 +164,12 @@ function streamToDisk (resource, filename, done, cwd) {
     filename = filename.match(/^.+\..+\?/)[0];
     filename = filename.substring(0, filename.length - 1);
   }
-  if(fs.existsSync(path.resolve(cwd, filename))) {
+  if (fs.existsSync(path.resolve(cwd, filename))) {
     filename = filename.split('.')[0] + duplicateFileCount + '.' + filename.split('.')[1];
+    duplicateFileCount += 1;
+  }
+  if (!filename.match(/.+ts$/i)) {
+    filename = "segment" + duplicateFileCount + ".ts";
     duplicateFileCount += 1;
   }
 
