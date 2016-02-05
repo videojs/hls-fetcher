@@ -7,6 +7,7 @@ var Decrypter = require('./decrypter.js');
 var async = require('async');
 
 var DEFAULT_CONCURRENCY = 5;
+var duplicateFileCount = 0;
 
 function getCWDName (parentUri, localUri) {
   // Do I need to use node's URL object?
@@ -59,6 +60,14 @@ function getIt (options, done) {
     var manifest = parseManifest(uri, body.toString());
 
     // Save manifest
+    if (playlistFilename.match(/\?/)) {
+      playlistFilename = playlistFilename.match(/^.+\..+\?/)[0];
+      playlistFilename = playlistFilename.substring(0, playlistFilename.length - 1);
+    }
+    if (!playlistFilename.match(/.+m3u8$/i)) {
+      playlistFilename = "playlist" +  ".m3u8";
+    }
+
     fs.writeFileSync(path.resolve(cwd, playlistFilename), createManifestText(manifest, uri));
 
     var segments = manifest.filter(function (resource) {
@@ -72,9 +81,7 @@ function getIt (options, done) {
       function fetchSegments (next) {
         async.eachLimit(segments, concurrency, function (resource, done) {
           var filename = path.basename(resource.line);
-
           console.log('Start fetching', resource.line);
-
           if (resource.encrypted) {
             // Fetch the key
 
@@ -103,12 +110,21 @@ function getIt (options, done) {
 
                 var decryptedSegment = new Decrypter(segmentData, key_bytes, resource.IV, function (err, data) {
                   // Save Uint8Array to disk
-                  return fs.writeFile(path.resolve(cwd, filename), new Buffer(data), done);
+
+                if (filename.match(/\?/)) {
+                  filename = filename.match(/^.+\..+\?/)[0];
+                  filename = filename.substring(0, filename.length - 1);
+                }
+                if(fs.existsSync(path.resolve(cwd, filename))) {
+                  filename = filename.split('.')[0] + duplicateFileCount + '.' + filename.split('.')[1];
+                  duplicateFileCount += 1;
+                }
+                return fs.writeFile(path.resolve(cwd, filename), new Buffer(data), done);
                 });
               });
             });
           } else {
-            return streamToDisk(resource, filename, done);
+            return streamToDisk(resource, filename, done, cwd);
           }
         }, next);
       },
@@ -139,9 +155,23 @@ function getIt (options, done) {
   });
 }
 
-function streamToDisk (resource, filename, done) {
+function streamToDisk (resource, filename, done, cwd) {
   // Fetch it to CWD (streaming)
   var segmentStream = new fetch.FetchStream(resource.line);
+  //handle duplicate filenames & remove query parameters
+  if (filename.match(/\?/)) {
+    filename = filename.match(/^.+\..+\?/)[0];
+    filename = filename.substring(0, filename.length - 1);
+  }
+  if (fs.existsSync(path.resolve(cwd, filename))) {
+    filename = filename.split('.')[0] + duplicateFileCount + '.' + filename.split('.')[1];
+    duplicateFileCount += 1;
+  }
+  if (!filename.match(/.+ts$/i)) {
+    filename = "segment" + duplicateFileCount + ".ts";
+    duplicateFileCount += 1;
+  }
+
   var outputStream = fs.createWriteStream(path.resolve(cwd, filename));
 
   segmentStream.pipe(outputStream);
