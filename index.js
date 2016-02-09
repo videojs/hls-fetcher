@@ -1,182 +1,62 @@
-var fs = require('fs');
+// Node modules
 var path = require('path');
-var mkdirp = require('mkdirp');
 var fetch = require('fetch');
-var parseManifest = require('./parse.js');
-var Decrypter = require('./decrypter.js');
+var parse = require('./parse.js');
 var async = require('async');
-var fileIndex = 1;
+var fs = require('fs');
 
-var DEFAULT_CONCURRENCY = 5;
+function getIt(options, done) {
+  var uri = options.uri,
+    cwd = options.cwd,
+    concurrency = options.concurrency || DEFAULT_CONCURRENCY,
+    playlistFilename = path.basename(uri.split('?')[0]);
 
-function getCWDName (parentUri, localUri) {
-  // Do I need to use node's URL object?
-  var parentPaths = path.dirname(parentUri).split('/');
-  var localPaths = path.dirname(localUri).split('/');
-
-  var lookFor = parentPaths.pop();
-  var i = localPaths.length;
-
-  while (i--) {
-    if (localPaths[i] === lookFor) {
-      break;
-    }
-  }
-
-  // No unique path-part found, use filename
-  if (i === localPaths.length - 1) {
-    return path.basename(localUri, path.extname(localUri));
-  }
-
-  return localPaths.slice(i + 1).join('_');
-}
-
-function preparePath (filename, cwd) {
-  var savePath = path.resolve(cwd, filename);
-
-    if (savePath.indexOf('?') != -1) {
-      savePath = savePath.split('?')[0];
-    }
-    if (fs.existsSync(savePath)) {
-      filename = filename.split('.')[0] + fileIndex.toString();
-      savePath = path.resolve(cwd, filename + '.ts');
-      fileIndex += 1;
-    }
-    if (savePath.indexOf('?') != -1) {
-      savePath = savePath.split('?')[0];
-    }
-    return savePath;
-}
-
-function createManifestText (manifest, rootUri) {
-  return manifest.map(function (line) {
-    if (line.type === 'playlist') {
-      var subCWD = getCWDName(rootUri, line.line);
-      return subCWD + '/' + path.basename(line.line);
-    } else if (line.type === 'segment') {
-      return path.basename(line.line);
-    }
-    return line.line;
-  }).join('\n');
-}
-
-function getIt (options, done) {
-  var uri = options.uri;
-  var cwd = options.cwd;
-  var concurrency = options.concurrency || DEFAULT_CONCURRENCY;
-  var playlistFilename = path.basename(uri);
-
-  // Fetch playlist
-  fetch.fetchUrl(uri, {timeout:180000}, function getPlaylist (err, meta, body) {
+  //start of the program, fetch master playlist
+  fetch.fetchUrl(uri, function getPlaylist(err, meta, body) {
     if (err) {
       console.error('Error fetching url:', uri);
       return done(err);
     }
+    //we now have the master playlist
+    var masterPlaylist = parse.parseMasterPlaylist(uri, body.toString()),
+      mediaPlaylists = masterPlaylist.medPlaylists,
+      oldLength = mediaPlaylists.length,
+      masterManifestLines = masterPlaylist.manLines,
+      i;
+    playlistFilename = playlistFilename = playlistFilename.split('?')[0];
 
-    // Parse playlist
-    var manifest = parseManifest(uri, body.toString());
+    //save master playlist
+    fs.writeFileSync(path.resolve(cwd, playlistFilename), masterPlaylist.manLines.join('\n'));
+    // parse the mediaplaylists for segments and targetDuration
+    for (i = 0; i < mediaPlaylists.length; i++) {
+      parse.parseMediaPlaylist(masterPlaylist.medPlaylists[i], doneParsing, path.dirname(masterPlaylist.uri), cwd);
+    }
+    masterPlaylist.mediaPlaylists = [];
 
-    // Save manifest
-    var savePath = preparePath(playlistFilename, cwd);
-
-    fs.writeFileSync(savePath, createManifestText(manifest, uri));
-
-    var segments = manifest.filter(function (resource) {
-      return resource.type === 'segment';
-    });
-    var playlists = manifest.filter(function (resource) {
-      return resource.type === 'playlist';
-    });
-
-    async.series([
-      function fetchSegments (next) {
-        async.eachLimit(segments, concurrency, function (resource, done) {
-          var filename = path.basename(resource.line);
-
-          console.log('Start fetching', resource.line);
-
-          if (resource.encrypted) {
-            // Fetch the key
-
-            fetch.fetchUrl(resource.keyURI, {timeout:180000}, function (err, meta, keyBody) {
-              if (err) {
-                return done(err);
-              }
-              // Convert it to an Uint32Array
-              var key_bytes = new Uint32Array([
-                keyBody.readUInt32BE(0),
-                keyBody.readUInt32BE(4),
-                keyBody.readUInt32BE(8),
-                keyBody.readUInt32BE(12)
-              ]);
-
-              // Fetch segment data
-
-              fetch.fetchUrl(resource.line, {timeout:180000},function (err, meta, segmentBody) {
-                if (err) {
-                  return done(err);
-                }
-                // Convert it to an Uint8Array
-                var segmentData = new Uint8Array(segmentBody);
-
-                // Use key, iv, and segment data to decrypt segment into Uint8Array
-
-                var decryptedSegment = new Decrypter(segmentData, key_bytes, resource.IV, function (err, data) {
-
-                var savePath = preparePath(filename, cwd);
-
-                return fs.writeFile(savePath, new Buffer(data), done);
-                });
-              });
-            });
-          } else {
-            return streamToDisk(resource, filename, done, cwd);
-          }
-        }, next);
-      },
-      function fetchPlaylists (next) {
-        async.eachSeries(playlists, function (resource, done) {
-          // Create subCWD from URI
-          var subCWD = getCWDName(uri, resource.line);
-          var subDir = path.resolve(cwd, subCWD);
-
-          // If subCWD does not exist, make subCWD (mkdirp)
-          mkdirp(subDir, function (err) {
-            if (err) {
-              console.error('Error creating output path:', subDir);
-              return done(err);
-            }
-
-            // Call `getIt` with subCWD and resource uri
-            getIt({
-              cwd: subDir,
-              uri: resource.line,
-              concurrency: concurrency
-              },
-              done);
-          });
-        }, next);
+    function doneParsing(playlist) {
+      masterPlaylist.mediaPlaylists.push(playlist);
+      // once we have gotten all of the data, setup downloading
+      if(masterPlaylist.mediaPlaylists.length === oldLength) {
+        setupDownload()
       }
-    ], done);
+    }
+
+    function setupDownload() {
+      var pl = masterPlaylist.mediaPlaylists,
+        rootUri,
+        newFunction,
+        newerFunction,
+        i;
+      // set update and download intervals
+      for (i = 0; i < pl.length; i++) {
+        rootUri = path.dirname(pl[i].uri);
+        updateFunction = pl[i].update.bind(pl[i]);
+        downloadFunction = pl[i].download.bind(pl[i]);
+        downloadFunction(rootUri, cwd, pl[i].bandwidth);
+        setInterval(updateFunction, pl[i].targetDuration * 1000, rootUri);
+        setInterval(downloadFunction,pl[i].targetDuration * 500, rootUri, cwd, pl[i].bandwidth);
+      }
+    }
   });
 }
-
-function streamToDisk (resource, filename, done, cwd) {
-  // Fetch it to CWD (streaming)
-  var segmentStream = new fetch.FetchStream(resource.line);
-  var outputStream = fs.createWriteStream(path.resolve(cwd, filename));
-
-  segmentStream.pipe(outputStream);
-
-  segmentStream.on('error', function (err) {
-    console.error('Fetching of url:', resource.line);
-    return done(err);
-  });
-
-  segmentStream.on('end', function () {
-    console.log('Finished fetching', resource.line);
-    return done();
-  });
-}
-
 module.exports = getIt;

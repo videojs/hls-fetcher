@@ -1,54 +1,154 @@
+// Node modules
+var fs = require('fs');
 var path = require('path');
-var URL = require('url');
+var mkdirp = require('mkdirp');
+var fetch = require('fetch');
+var Decrypter = require('./decrypter.js');
+var Download = require('./download.js');
+
+// Constants
 var IV;
 var keyURI;
 var begunEncryption = false;
-var sequenceNumber = -1;
-var useSequence = false;
+var duplicateFileCount = 0;
+
+function parseMasterPlaylist (manifestUri, manifestData) {
+  var manifestLines = [],
+    mediaPlaylists = [],
+    rootUri = path.dirname(manifestUri),
+    lines,
+    currentLine,
+    i,
+    mediaPlaylist;
+
+  // Split into lines
+  lines = manifestData.split('\n');
+  for (i = 0; i < lines.length; i++) {
+    currentLine = lines[i];
+    manifestLines.push(currentLine);
+    if (currentLine.match(/^#EXT-X-STREAM-INF/i)) {
+      i++;
+      manifestLines.push(lines[i]);
+      // we found a media playlist
+      mediaPlaylist = {
+        targetDuration:0,
+        uri:lines[i],
+        mostRecentSegmentUri:undefined,
+        bandwidth:parseInt(currentLine.match(/BANDWIDTH=\d+/i)[0].split('=')[1]),
+        segments: []
+      }
+
+      //make our url absolute if we have to
+      if (!mediaPlaylist.uri.match(/^https?:\/\//i)) {
+        mediaPlaylist.uri = path.dirname(manifestUri) + '/' + mediaPlaylist.uri;
+      }
+      mediaPlaylists.push(mediaPlaylist);
+    }
+  }
+  return {
+    manLines:manifestLines,
+    medPlaylists: mediaPlaylists
+  };
+}
 
 function parseEncryption(tagLine, manifestUri) {
-
   if (tagLine.match(/^#EXT-X-KEY/i) && tagLine.match(/AES/)) {
-    var encryptionInfo = tagLine.split(',');
     begunEncryption = true;
-    keyURI = encryptionInfo[1];
+    keyURI = tagLine.split(',')[1];
     keyURI = keyURI.substring(5, keyURI.length - 1);
-    if (encryptionInfo.length > 2) {
-      //we have an IV
-      IV = encryptionInfo[2]
-      IV = IV.substring(3, IV.length - 1);
-    } else {
-      //use the media sequence number
-      useSequence = true;
-    }
-
+    IV = tagLine.split(',')[2]
+    IV = IV.substring(3, IV.length - 1);
   }
 }
 
-function parseResource (tagLine, resourceLine, manifestUri) {
+function parseMediaPlaylist(playlist, done, rootUri, cwd) {
+  var manifestLines = [],
+    segments = [];
+
+  // Split into lines
+  fetch.fetchUrl(playlist.uri, function (err, meta, body) {
+    var lines = body.toString().split('\n'),
+    i,
+    currentLine;
+
+    // determine resources, and store all lines
+    for (i = 0; i < lines.length; i++) {
+      currentLine = lines[i];
+      manifestLines.push(currentLine);
+      if (currentLine.match(/^#EXT-X-KEY/i)) {
+        parseEncryption(currentLine, rootUri);
+      } else if (currentLine.match(/^#EXTINF/)) {
+        i++;
+        if (i < lines.length) {
+          manifestLines.push(lines[i]);
+          segments.push(parseResource(currentLine, lines[i], path.dirname(playlist.uri)));
+        }
+      } else if (currentLine.match(/^#EXT-X-TARGETDURATION:.+/i)) {
+        playlist.targetDuration = parseInt(currentLine.split(':')[1]);
+      }
+    }
+    cwd =  cwd + '/' + playlist.bandwidth + '/';
+    mkdirp.sync(cwd);
+
+    //save media playlist manifest
+    fs.writeFileSync(path.resolve(cwd, 'playlist.m3u8'), manifestLines.join('\n'));
+    playlist.segments = segments;
+    playlist.manifestLines = manifestLines;
+    playlist.download = Download;
+    playlist.update = update;
+    done(playlist);
+  });
+}
+
+
+function update(rootUri) {
+  //we have passed the most recently downloaded segment in our iteration
+  var passedRecent = false,
+    lastSegmentUri = this.segments[this.segments.length - 1].uri,
+    playlist = this;
+
+  fetch.fetchUrl(playlist.uri, function (err, meta, body) {
+    var newPlaylistLines = body.toString().split('\n'),
+      i,
+      currentLine,
+      resource;
+
+    //iterate through manifest and check for new url
+    for (i = 0; i < newPlaylistLines.length; i++) {
+      currentLine = newPlaylistLines[i];
+      if (currentLine.match(/^#EXT-X-KEY/i)) {
+        parseEncryption(currentLine, rootUri);
+      }
+      else if (newPlaylistLines[i].match(/^#EXTINF/)) {
+        i++;
+        if (i < newPlaylistLines.length) {
+          resource = parseResource(currentLine, newPlaylistLines[i], rootUri);
+          //if we have already passed the difference in the manifest, start adding
+          if (passedRecent) {
+            playlist.segments.push(resource);
+          } else if (resource.uri === playlist.mostRecentUri) {
+            passedRecent = true;
+          }
+        }
+      }
+    }
+  });
+}
+
+function parseResource(tagLine, resourceLine, manifestUri) {
   var resource = {
-    type: 'unknown',
+    type: 'segment',
     line: resourceLine,
     encrypted: false,
     keyURI: 'unknown',
-    IV: 0
+    IV: 0,
+    downloaded: false
   };
-
-  if(tagLine.match(/^#EXTINF/i)) {
-    resource.type = 'segment';
-    sequenceNumber += 1;
-  } else if (tagLine.match(/^#EXT-X-STREAM-INF/i)) {
-    resource.type = 'playlist';
-  }
 
   if (begunEncryption) {
     resource.encrypted = true;
     resource.keyURI = keyURI;
-    if (useSequence) {
-      resource.IV = sequenceNumber.toString();
-    } else {
-      resource.IV = IV;
-    }
+    resource.IV = IV;
     // make our uri absolute if we need to
     if (!resource.keyURI.match(/^https?:\/\//i)) {
       resource.keyURI = manifestUri + '/' + resource.keyURI;
@@ -58,7 +158,6 @@ function parseResource (tagLine, resourceLine, manifestUri) {
     if (resource.IV.substring(0,2) === '0x') {
       resource.IV = resource.IV.substring(2);
     }
-
     resource.IV = resource.IV.match(/.{8}/g);
     resource.IV[0] = parseInt(resource.IV[0], 16);
     resource.IV[1] = parseInt(resource.IV[1], 16);
@@ -66,40 +165,10 @@ function parseResource (tagLine, resourceLine, manifestUri) {
     resource.IV[3] = parseInt(resource.IV[3], 16);
     resource.IV = new Uint32Array(resource.IV);
   }
-
-  // make our uri absolute if we need to
-  if (!resourceLine.match(/^https?:\/\//i)) {
-    resource.line = manifestUri + '/' + resource.line;
-  }
   return resource;
 }
 
-function parseManifest (manifestUri, manifestData) {
-  var manifestLines = [];
-  var rootUri = path.dirname(manifestUri);
-
-  // Split into lines
-  var lines = manifestData.split('\n');
-
-  // determine resources, and store all lines
-  for(var i = 0; i < lines.length; i++) {
-    var currentLine = lines[i];
-    manifestLines.push({type: 'tag', line: currentLine});
-    if (currentLine.match(/^#EXT-X-KEY/i)) {
-      parseEncryption(currentLine, rootUri);
-    }
-    else if(currentLine.match(/^#EXT-X-MEDIA-SEQUENCE/i)) {
-      sequenceNumber = parseInt(currentLine.split(':')[1]);
-    }
-    else if(currentLine.match(/^#EXTINF/) || currentLine.match(/^#EXT-X-STREAM-INF/)) {
-      i++;
-      if (i < lines.length) {
-        manifestLines.push(parseResource(currentLine, lines[i], rootUri));
-      }
-    }
-  }
-
-  return manifestLines;
-}
-
-module.exports = parseManifest;
+module.exports = {
+  parseMediaPlaylist:parseMediaPlaylist,
+  parseMasterPlaylist:parseMasterPlaylist
+};
