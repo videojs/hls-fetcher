@@ -14,7 +14,7 @@ var pessimist = require('pessimist')
     .default('c', 5)
     .describe('c', 'number of simultaneous fetches (default: 5)')
     .argv;
-var getIt = require('../');
+var getIt = require('../').getIt;
 
 // Make output path
 var output = path.resolve(pessimist.o);
