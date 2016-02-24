@@ -4,7 +4,7 @@
   "description": "Fetch HLS segments from an m3u8 playlist",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test/basic.js"
   },
   "bin": {
     "hls-fetcher": "./bin/cli.js"
