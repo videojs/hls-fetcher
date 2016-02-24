@@ -137,24 +137,24 @@ function getIt (options, done) {
       }
     ], done);
   });
-}
 
-function streamToDisk (resource, filename, done) {
-  // Fetch it to CWD (streaming)
-  var segmentStream = new fetch.FetchStream(resource.line);
-  var outputStream = fs.createWriteStream(path.resolve(cwd, filename));
+  function streamToDisk (resource, filename, done) {
+    // Fetch it to CWD (streaming)
+    var segmentStream = new fetch.FetchStream(resource.line);
+    var outputStream = fs.createWriteStream(path.resolve(cwd, filename));
 
-  segmentStream.pipe(outputStream);
+    segmentStream.pipe(outputStream);
 
-  segmentStream.on('error', function (err) {
-    console.error('Fetching of url:', resource.line);
-    return done(err);
-  });
+    segmentStream.on('error', function (err) {
+      console.error('Fetching of url:', resource.line);
+      return done(err);
+    });
 
-  segmentStream.on('end', function () {
-    console.log('Finished fetching', resource.line);
-    return done();
-  });
+    segmentStream.on('end', function () {
+      console.log('Finished fetching', resource.line);
+      return done();
+    });
+  }
 }
 
 module.exports = getIt;
