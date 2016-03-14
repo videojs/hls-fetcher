@@ -30,7 +30,8 @@ function getCWDName (parentUri, localUri) {
     return path.basename(localUri, path.extname(localUri));
   }
 
-  return localPaths.slice(i + 1).join('_');
+  // join parts that are part the parent
+  return localPaths.slice(i + 1).join('/');
 }
 
 function createManifestText (manifest, rootUri) {
@@ -40,8 +41,12 @@ function createManifestText (manifest, rootUri) {
       return subCWD + '/' + path.basename(line.line);
     } else if (line.type === 'segment') {
       return path.basename(line.line);
+    } else if (line.fake) {
+      return null;
     }
     return line.line;
+  }).filter(function(line) {
+    return line !== null;
   }).join('\n');
 }
 
@@ -83,6 +88,15 @@ function getIt (options, done) {
       function fetchSegments (next) {
         async.eachLimit(segments, concurrency, function (resource, done) {
           var filename = path.basename(resource.line);
+          if (filename.match(/\?/)) {
+            filename = filename.match(/^.+\..+\?/)[0];
+            filename = filename.substring(0, filename.length - 1);
+          }
+          if (fs.existsSync(path.resolve(cwd, filename))) {
+            // console.log('Skipping', resource.line, 'its already downloaded');
+            return done();
+          }
+
           if (resource.encrypted) {
             return fetchAndDecryptedSegment(resource, filename, cwd, done);
           } else {
@@ -118,34 +132,20 @@ function getIt (options, done) {
 }
 
 function streamToDisk (resource, filename, cwd, done) {
-  console.log('Streaming', resource.line, 'to disk.');
   // Fetch it to CWD (streaming)
   var segmentStream = new fetch.FetchStream(resource.line);
   //handle duplicate filenames & remove query parameters
-  if (filename.match(/\?/)) {
-    filename = filename.match(/^.+\..+\?/)[0];
-    filename = filename.substring(0, filename.length - 1);
-  }
-  if (fs.existsSync(path.resolve(cwd, filename))) {
-    filename = filename.split('.')[0] + duplicateFileCount + '.' + filename.split('.')[1];
-    duplicateFileCount += 1;
-  }
-  if (!filename.match(/.+ts$/i)) {
-    filename = "segment" + duplicateFileCount + ".ts";
-    duplicateFileCount += 1;
-  }
-
+  console.log('Streaming', resource.line, 'to disk.');
   var outputStream = fs.createWriteStream(path.resolve(cwd, filename));
-
   segmentStream.pipe(outputStream);
 
   segmentStream.on('error', function (err) {
-    console.error('Fetching of url:', resource.line);
+    console.error('Error fetching url:', resource.line);
     return done(err);
   });
 
   segmentStream.on('end', function () {
-    console.log('Finished fetching', resource.line);
+//    console.log('Finished fetching', resource.line);
     return done();
   });
 }

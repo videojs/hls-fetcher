@@ -38,6 +38,9 @@ function parseResource (tagLine, resourceLine, manifestUri, mediaSequence, encry
     resource.type = 'segment';
   } else if (tagLine.match(/^#EXT-X-STREAM-INF/i)) {
     resource.type = 'playlist';
+  } else if(tagLine.match(/^#EXT-X-MEDIA/i) && tagLine.match(/URI=".+"/i)) {
+    resource.type = 'playlist';
+    resource.fake = true;
   }
 
   if (encryptionSettings) {
@@ -82,10 +85,17 @@ function parseManifest (manifestUri, manifestData) {
     manifestLines.push({type: 'tag', line: currentLine});
     if (currentLine.match(/^#EXT-X-KEY/i)) {
       encryptionSettings = parseEncryption(currentLine, manifestUri);
+    } else if(currentLine.match(/^#EXT-X-MEDIA/i) && currentLine.match(/URI=".+"/i)) {
+      var match = currentLine.match(/URI="(.+)"/i);
+      manifestLines.push(parseResource(currentLine, match[1], rootUri, mediaSequence, encryptionSettings));
     } else if(currentLine.match(/^#EXT-X-MEDIA-SEQUENCE/i)) {
       mediaSequence = parseFloat(currentLine.split(':')[1]);
     } else if(currentLine.match(/^#EXTINF/) || currentLine.match(/^#EXT-X-STREAM-INF/)) {
       i++;
+      if (lines[i].match(/^#EXT-X-BYTERANGE/i)) {
+        manifestLines[(manifestLines.length-1)].line += "\n" + lines[i];
+        i++;
+      }
       if (i < lines.length) {
         manifestLines.push(parseResource(currentLine, lines[i], rootUri, mediaSequence++, encryptionSettings));
       }

@@ -137,7 +137,7 @@ test('getCWDName works properly', function(t) {
   t.plan(3);
   t.equal(test1, 'test');
   t.equal(test2, 'c');
-  t.equal(test3, 'c_d_e');
+  t.equal(test3, 'c/d/e');
 });
 
 /*   5. Test that parseResource identifies segments and playlists correctly */

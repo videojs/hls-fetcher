@@ -2,13 +2,13 @@
 
 var path = require('path');
 var mkdirp = require('mkdirp');
+var fs = require('fs');
 var pessimist = require('pessimist')
     .usage('Fetch and save the contents of an HLS playlist locally.\nUsage: $0 ')
     .alias('i', 'input')
     .demand('i')
     .describe('i', 'uri to m3u8 (required)')
     .alias('o', 'output')
-    .default('o', './')
     .describe('o', 'output path (default:\'./\')')
     .alias('c', 'concurrency')
     .default('c', 5)
@@ -17,7 +17,17 @@ var pessimist = require('pessimist')
 var getIt = require('../').getIt;
 
 // Make output path
-var output = path.resolve(pessimist.o);
+var output = path.join('./', path.basename(path.dirname(pessimist.i)));
+if (pessimist.o) {
+  path.resolve(pessimist.o);
+}
+try {
+  fs.statSync(output);
+  console.error('Error output dir already exists at:', output);
+  process.exit(1);
+} catch(e) {
+  // does not exist there is no issue
+}
 var startTime = Date.now();
 
 mkdirp(output, function (err) {

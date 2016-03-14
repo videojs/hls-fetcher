@@ -28,5 +28,8 @@
     "mkdirp": "^0.5.1",
     "pessimist": "^0.3.5",
     "pkcs7": "^0.2.3"
+  },
+  "devDependencies": {
+    "tape": "^4.5.1"
   }
 }
