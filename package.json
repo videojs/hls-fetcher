@@ -4,14 +4,14 @@
   "description": "Fetch HLS segments from an m3u8 playlist",
   "main": "index.js",
   "scripts": {
-    "test": "node test/basic.js"
+    "test": "echo 'No tests to run'"
   },
   "bin": {
-    "hls-fetcher": "./bin/cli.js"
+    "hls-fetcher": "./src/cli.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/imbcmdth/hls-fetcher.git"
+    "url": "git+https://github.com/videojs/hls-fetcher.git"
   },
   "contributors": [
     "Jon-Carlos Rivera <jon.carlos.rivera@gmail.com> (http://jon-carlos.com/)",
@@ -23,10 +23,13 @@
   },
   "homepage": "https://github.com/imbcmdth/hls-fetcher#readme",
   "dependencies": {
-    "async": "^1.5.0",
-    "fetch": "^0.3.6",
+    "aes-decrypter": "^1.0.2",
+    "bluebird": "^3.4.0",
+    "m3u8-parser": "^1.0.2",
     "mkdirp": "^0.5.1",
     "pessimist": "^0.3.5",
-    "pkcs7": "^0.2.3"
+    "promise-streams": "^1.0.1",
+    "requestretry": "^1.8.0",
+    "sync-request": "^3.0.1"
   }
 }
