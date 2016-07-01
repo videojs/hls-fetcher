@@ -11,7 +11,7 @@ notifications:
     channels:
       - "chat.freenode.net#videojs"
     use_notice: true
-# Set up a virtual screen for Firefox.
+# Set up a virtual screen for Chrome.
 before_script:
   - export CHROME_BIN=/usr/bin/google-chrome
   - export DISPLAY=:99.0
