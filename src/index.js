@@ -8,4 +8,5 @@ var main = function(options) {
   return WriteData(options.decrypt, options.concurrency, resources);
 };
 
-module.exports = {main, WalkManifest};
+module.exports = main;
+module.exports.WalkManifest = WalkManifest;
