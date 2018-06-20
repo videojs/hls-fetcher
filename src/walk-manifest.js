@@ -3,7 +3,6 @@ var syncRequest = require('sync-request');
 var url = require('url');
 var path = require('path');
 var fs = require('fs');
-var qs = require('querystring');
 
 // replace invalid http/fs characters with valid representations
 var fsSanatize = function(filepath) {
