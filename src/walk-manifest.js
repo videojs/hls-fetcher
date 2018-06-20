@@ -114,7 +114,15 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex) {
 		parent.content = new Buffer(parent.content.toString().replace(uri, path.relative(path.dirname(parent.file), manifest.file)));
 	}
 
-  manifest.content = syncRequest('GET', manifest.uri).getBody();
+  res = syncRequest('GET', manifest.uri);
+
+  // Don't throw an error if we get a non 200 just return an emtpy array.
+  if (res.statusCode !== 200) {
+    console.log('Got a ' + res.statusCode + 'status code for ' + manifest.uri);
+    return [];
+  }
+  manifest.content = res.getBody();
+	
   manifest.parsed  = parseManifest(manifest.content);
 	manifest.parsed.segments = manifest.parsed.segments   || [];
 	manifest.parsed.playlists = manifest.parsed.playlists || [];
