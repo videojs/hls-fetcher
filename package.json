@@ -2,7 +2,7 @@
   "name": "hls-fetcher",
   "version": "1.1.1",
   "description": "Fetch HLS segments from an m3u8 playlist",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
     "test": "echo 'No tests to run'"
   },
