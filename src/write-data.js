@@ -6,6 +6,9 @@ var aesDecrypter = require('aes-decrypter').Decrypter;
 var path = require('path');
 
 var writeFile = function(file, content) {
+  // remove querystring from the filename if it exists
+  file = file.split('?').shift();
+
   return mkdirp(path.dirname(file)).then(function() {
     return fs.writeFileAsync(file, content);
   }).then(function() {
