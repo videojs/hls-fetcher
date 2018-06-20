@@ -114,7 +114,6 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex) {
 		parent.content = new Buffer(parent.content.toString().replace(uri, path.relative(path.dirname(parent.file), manifest.file)));
 	}
 
-
   manifest.content = syncRequest('GET', manifest.uri).getBody();
   manifest.parsed  = parseManifest(manifest.content);
 	manifest.parsed.segments = manifest.parsed.segments   || [];
