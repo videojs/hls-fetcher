@@ -3,13 +3,28 @@ var syncRequest = require('sync-request');
 var url = require('url');
 var path = require('path');
 var fs = require('fs');
+var qs = require('querystring');
+
+// get the basename of the uri and prepend
+// the querystring (if it has one) to that file name.
+var baseQueryStringName = function(uri) {
+	var base = path.basename(uri);
+	var split = base.split('?');
+
+	// if there is no querystring the uri is already good
+	if (!split[1]) {
+		return base;
+	}
+
+	// prepend the querystring, without the ?
+	return split[1] + split[0];
+};
 
 var joinURI = function(absolute, relative) {
 	var parse = url.parse(absolute);
 	parse.pathname = path.join(parse.pathname, relative);
 	return url.format(parse);
 };
-
 
 var isAbsolute = function(uri) {
 	var parsed = url.parse(uri);
@@ -62,7 +77,7 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent) {
 		if (parent) {
 			key.file = path.dirname(parent.file);
 		}
-		key.file = path.join(key.file, path.basename(key.uri));
+		key.file = path.join(key.file, baseQueryStringName(key.uri));
 
 		manifest.content = new Buffer(manifest.content.toString().replace(
 			key.uri,
@@ -96,7 +111,7 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex) {
 	var resources = [];
 	var manifest  = {};
 	manifest.uri  = uri;
-	manifest.file = path.join(basedir, path.basename(uri));
+	manifest.file = path.join(basedir, baseQueryStringName(uri));
 	resources.push(manifest);
 
 	// if we are not the master playlist
@@ -104,7 +119,7 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex) {
 		manifest.file = path.join(
 			path.dirname(parent.file),
 			'manifest' + manifestIndex,
-			path.basename(manifest.file)
+			baseQueryStringName(manifest.file)
 		);
 		// get the real uri of this playlist
 		if (!isAbsolute(manifest.uri)) {
@@ -129,7 +144,7 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex) {
 			return;
 		}
 		// put segments in manifest-name/segment-name.ts
-		s.file = path.join(path.dirname(manifest.file), path.basename(s.uri));
+		s.file = path.join(path.dirname(manifest.file), baseQueryStringName(s.uri));
 		if (!isAbsolute(s.uri)) {
 			s.uri = joinURI(path.dirname(manifest.uri), s.uri);
 		}
@@ -137,7 +152,11 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex) {
 			s.key = key;
 			s.key.iv = s.key.iv || new Uint32Array([0, 0, 0, manifest.parsed.mediaSequence, i]);
 		}
-		manifest.content = new Buffer(manifest.content.toString().replace(s.uri, path.basename(s.uri)));
+
+		manifest.content = new Buffer(manifest.content.toString().replace(
+			s.uri,
+			path.relative(path.dirname(manifest.file), s.file)
+		));
 		resources.push(s);
 	});
 
