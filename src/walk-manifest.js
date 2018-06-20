@@ -5,7 +5,7 @@ var path = require('path');
 var fs = require('fs');
 
 // replace invalid http/fs characters with valid representations
-var fsSanatize = function(filepath) {
+var fsSanitize = function(filepath) {
 	return filepath
 		.replace(/\?/g, '-questionmark-');
 };
@@ -67,7 +67,7 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent) {
 		if (parent) {
 			key.file = path.dirname(parent.file);
 		}
-		key.file = path.join(key.file, fsSanatize(path.basename(key.uri)));
+		key.file = path.join(key.file, fsSanitize(path.basename(key.uri)));
 
 		manifest.content = new Buffer(manifest.content.toString().replace(
 			key.uri,
@@ -101,7 +101,7 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex) {
 	var resources = [];
 	var manifest  = {};
 	manifest.uri  = uri;
-	manifest.file = path.join(basedir, fsSanatize(path.basename(uri)));
+	manifest.file = path.join(basedir, fsSanitize(path.basename(uri)));
 	resources.push(manifest);
 
 	// if we are not the master playlist
@@ -109,7 +109,7 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex) {
 		manifest.file = path.join(
 			path.dirname(parent.file),
 			'manifest' + manifestIndex,
-			fsSanatize(path.basename(manifest.file))
+			fsSanitize(path.basename(manifest.file))
 		);
 		// get the real uri of this playlist
 		if (!isAbsolute(manifest.uri)) {
@@ -134,7 +134,7 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex) {
 			return;
 		}
 		// put segments in manifest-name/segment-name.ts
-		s.file = path.join(path.dirname(manifest.file), fsSanatize(path.basename(s.uri)));
+		s.file = path.join(path.dirname(manifest.file), fsSanitize(path.basename(s.uri)));
 		if (!isAbsolute(s.uri)) {
 			s.uri = joinURI(path.dirname(manifest.uri), s.uri);
 		}
