@@ -8,4 +8,4 @@ var main = function(options) {
   return WriteData(options.decrypt, options.concurrency, resources);
 };
 
-module.exports = main;
+module.exports = {main, WalkManifest};
