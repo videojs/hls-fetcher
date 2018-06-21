@@ -10,3 +10,4 @@ var main = function(options) {
 };
 
 module.exports = main;
+module.exports.WalkManifest = WalkManifest;
