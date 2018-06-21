@@ -5,6 +5,7 @@ var main = function(options) {
   console.log("Gathering Manifest data...");
   var resources = WalkManifest(options.decrypt, options.output, options.input);
 
+  console.log("Downloading additional data...");
   return WriteData(options.decrypt, options.concurrency, resources);
 };
 
