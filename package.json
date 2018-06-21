@@ -24,12 +24,13 @@
   "homepage": "https://github.com/imbcmdth/hls-fetcher#readme",
   "dependencies": {
     "aes-decrypter": "^1.0.2",
+    "async": "^2.6.1",
     "bluebird": "^3.4.0",
     "m3u8-parser": "^1.0.2",
     "mkdirp": "^0.5.1",
     "pessimist": "^0.3.5",
     "promise-streams": "^1.0.1",
-    "requestretry": "^1.8.0",
-    "sync-request": "^3.0.1"
+    "request": "^2.87.0",
+    "requestretry": "^1.8.0"
   }
 }

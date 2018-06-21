@@ -1,5 +1,6 @@
 var m3u8 = require('m3u8-parser');
-var syncRequest = require('sync-request');
+var request = require('request');
+var async = require('async');
 var url = require('url');
 var path = require('path');
 var fs = require('fs');
@@ -44,9 +45,9 @@ var parseManifest = function(content) {
   return parser.manifest;
 };
 
-var parseKey = function(basedir, decrypt, resources, manifest, parent) {
+var parseKey = function(basedir, decrypt, resources, manifest, parent, callback) {
 	if (!manifest.parsed.segments[0] || !manifest.parsed.segments[0].key) {
-		return {};
+		return callback();
 	}
 	var key = manifest.parsed.segments[0].key;
 
@@ -70,30 +71,31 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent) {
 		));
 		key.uri = keyUri;
 		resources.push(key);
-		return key;
+		return callback(key);
 	}
 
 	// get the aes key
-	var keyContent = syncRequest('GET', keyUri).getBody();
-	key.bytes = new Uint32Array([
-		keyContent.readUInt32BE(0),
-		keyContent.readUInt32BE(4),
-		keyContent.readUInt32BE(8),
-		keyContent.readUInt32BE(12)
-	]);
+  request(keyUri, function (error, response, body) {
+    var keyContent = body;
+    key.bytes = new Uint32Array([
+      keyContent.readUInt32BE(0),
+      keyContent.readUInt32BE(4),
+      keyContent.readUInt32BE(8),
+      keyContent.readUInt32BE(12)
+    ]);
 
-	// remove the key from the manifest
-	manifest.content = new Buffer(manifest.content.toString().replace(
-		new RegExp('.*' + key.uri + '.*'),
-		''
-	));
+    // remove the key from the manifest
+    manifest.content = new Buffer(manifest.content.toString().replace(
+      new RegExp('.*' + key.uri + '.*'),
+      ''
+    ));
 
 
-	return key;
+    return callback(key);
+  });
 };
 
-var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex) {
-	var resources = [];
+var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, resources, callback) {
 	var manifest  = {};
 	manifest.uri  = uri;
 	manifest.file = path.join(basedir, path.basename(uri));
@@ -114,42 +116,45 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex) {
 		parent.content = new Buffer(parent.content.toString().replace(uri, path.relative(path.dirname(parent.file), manifest.file)));
 	}
 
-  manifest.content = syncRequest('GET', manifest.uri).getBody();
-  manifest.parsed  = parseManifest(manifest.content);
-	manifest.parsed.segments = manifest.parsed.segments   || [];
-	manifest.parsed.playlists = manifest.parsed.playlists || [];
-	manifest.parsed.mediaGroups = manifest.parsed.mediaGroups || {};
+  request(manifest.uri, function (error, response, body) {
 
-  var playlists = manifest.parsed.playlists.concat(mediaGroupPlaylists(manifest.parsed.mediaGroups));
-	var key = parseKey(basedir, decrypt, resources, manifest, parent);
+    manifest.content = body;
 
-	// SEGMENTS
-	manifest.parsed.segments.forEach(function(s, i) {
-		if (!s.uri) {
-			return;
-		}
-		// put segments in manifest-name/segment-name.ts
-		s.file = path.join(path.dirname(manifest.file), path.basename(s.uri));
-		if (!isAbsolute(s.uri)) {
-			s.uri = joinURI(path.dirname(manifest.uri), s.uri);
-		}
-		if (key) {
-			s.key = key;
-			s.key.iv = s.key.iv || new Uint32Array([0, 0, 0, manifest.parsed.mediaSequence, i]);
-		}
-		manifest.content = new Buffer(manifest.content.toString().replace(s.uri, path.basename(s.uri)));
-		resources.push(s);
-	});
+    manifest.parsed  = parseManifest(manifest.content);
+    manifest.parsed.segments = manifest.parsed.segments   || [];
+    manifest.parsed.playlists = manifest.parsed.playlists || [];
+    manifest.parsed.mediaGroups = manifest.parsed.mediaGroups || {};
 
-	// SUB Playlists
-	playlists.forEach(function(p, z) {
-		if (!p.uri) {
-			return;
-		}
-		resources = resources.concat(walkPlaylist(decrypt, basedir, p.uri, manifest, z));
-	});
+    var playlists = manifest.parsed.playlists.concat(mediaGroupPlaylists(manifest.parsed.mediaGroups));
+    parseKey(basedir, decrypt, resources, manifest, parent, function(key) {
+      // SEGMENTS
+      manifest.parsed.segments.forEach(function(s, i) {
+        if (!s.uri) {
+          return;
+        }
+        // put segments in manifest-name/segment-name.ts
+        s.file = path.join(path.dirname(manifest.file), path.basename(s.uri));
+        if (!isAbsolute(s.uri)) {
+          s.uri = joinURI(path.dirname(manifest.uri), s.uri);
+        }
+        if (key) {
+          s.key = key;
+          s.key.iv = s.key.iv || new Uint32Array([0, 0, 0, manifest.parsed.mediaSequence, i]);
+        }
+        manifest.content = new Buffer(manifest.content.toString().replace(s.uri, path.basename(s.uri)));
+        resources.push(s);
+      });
 
-	return resources;
+      // SUB Playlists
+      async.map(playlists, function(p, cb) {
+        if (!p.uri) {
+          return cb(null);
+        }
+        walkPlaylist(decrypt, basedir, p.uri, manifest, playlists.indexOf(p), resources, cb);
+      }, callback);
+    });
+  });
+
 };
 
 module.exports = walkPlaylist;
