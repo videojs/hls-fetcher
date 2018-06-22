@@ -122,7 +122,6 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, callba
   var manifest = {};
   manifest.uri = uri;
   manifest.file = path.join(basedir, fsSanitize(path.basename(uri)));
-  resources.push(manifest);
 
   // if we are not the master playlist
   if (parent) {
@@ -142,12 +141,14 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, callba
   request(manifest.uri, function(error, response, body) {
     if (error) {
       console.error('Failed to get key', error, manifest.uri);
-      return callback(resources);
+      return callback(null, resources);
     }
     if (response.statusCode !== 200) {
       console.error('Failed to get key', response.statusCode, manifest.uri);
-      return callback(resources);
+      return callback(null, resources);
     }
+    // Only push value manifest uris
+    resources.push(manifest);
 
     manifest.content = body;
 
