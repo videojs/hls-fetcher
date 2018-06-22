@@ -1,12 +1,12 @@
 var WalkManifest = require('./walk-manifest');
 var WriteData = require('./write-data');
 
-var main = function(options) {
+var main = function(options, callback) {
   console.log("Gathering Manifest data...");
-  var resources = WalkManifest(options.decrypt, options.output, options.input);
-
-  console.log("Downloading additional data...");
-  return WriteData(options.decrypt, options.concurrency, resources);
+  WalkManifest(options.decrypt, options.output, options.input, function(err, resources) {
+    console.log("Downloading additional data...");
+    callback(WriteData(options.decrypt, options.concurrency, resources));
+  });
 };
 
 module.exports = main;

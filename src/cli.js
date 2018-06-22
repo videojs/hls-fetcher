@@ -27,11 +27,13 @@ var options = {
   decrypt: pessimist.d
 };
 
-start(options).then(function() {
-  var timeTaken = ((Date.now() - startTime) / 1000).toFixed(2);
-  console.log('Operation completed successfully in', timeTaken, 'seconds.');
-  process.exit(0);
-}).catch(function(error) {
-  console.error('ERROR', error);
-  process.exit(1);
+start(options, function(data) {
+  data.then(function() {
+    var timeTaken = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log('Operation completed successfully in', timeTaken, 'seconds.');
+    process.exit(0);
+  }).catch(function(error) {
+    console.error('ERROR', error);
+    process.exit(1);
+  });
 });
