@@ -16,9 +16,9 @@ describe('walk-manifest', function() {
                 .replyWithFile(200, `${process.cwd()}/test/resources/empty.m3u8`);
 
             walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
-                // m3u8 and 11 segments
-                assert.equal(resources.length, 1);
-                resources.forEach(function(item) {
+                const setResources = new Set(resources);
+                assert.equal(setResources.size, 1);
+                setResources.forEach(function(item) {
                     assert(item.uri.includes('.m3u8'));
                 });
                 done();
@@ -33,8 +33,9 @@ describe('walk-manifest', function() {
 
             walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
                 // m3u8 and 11 segments
-                assert.equal(resources.length, 12);
-                resources.forEach(function(item) {
+                const setResources = new Set(resources);
+                assert.equal(setResources.size, 12);
+                setResources.forEach(function(item) {
                     assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
                 });
                 done();
@@ -51,25 +52,29 @@ describe('walk-manifest', function() {
 
             walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
                 // m3u8 and 11 segments
-                assert.equal(resources.length, 12);
-                resources.forEach(function(item) {
+                const setResources = new Set(resources);
+                assert.equal(setResources.size, 12);
+                setResources.forEach(function(item) {
                     assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
                 });
                 done();
             });
         });
 
-        it('should not  for a cycle m3u8', function(done) {
+        it('should not get stuck for a cycle of m3u8', function(done) {
 
             nock(TEST_URL)
-                .get('/cycle.m3u8')
-                .replyWithFile(200, `${process.cwd()}/test/resources/cycle.m3u8`);
+                .get('/cycle1.m3u8')
+                .replyWithFile(200, `${process.cwd()}/test/resources/cycle1.m3u8`)
+                .get('/cycle2.m3u8')
+                .replyWithFile(200, `${process.cwd()}/test/resources/cycle2.m3u8`);
 
-            walker(false, '.', TEST_URL + '/cycle.m3u8', function(err, resources) {
+            walker(false, '.', TEST_URL + '/cycle1.m3u8', function(err, resources) {
                 console.log(resources);
                 // m3u8 and 11 segments
-                assert.equal(resources.length, 1);
-                resources.forEach(function(item) {
+                const setResources = new Set(resources);
+                assert.equal(setResources.size, 2);
+                setResources.forEach(function(item) {
                     assert(item.uri.includes('.m3u8'));
                 });
                 done();
@@ -119,8 +124,9 @@ describe('walk-manifest', function() {
 
             walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
                 // 4 m3u8 and 8 * 3 segments
-                assert.equal(resources.length, 28);
-                resources.forEach(function(item) {
+                const setResources = new Set(resources);
+                assert.equal(setResources.size, 28);
+                setResources.forEach(function(item) {
                     assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
                 });
                 done();
@@ -143,8 +149,9 @@ describe('walk-manifest', function() {
 
             walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
                 // 4 m3u8 and 8 * 3 segments
-                assert.equal(resources.length, 28);
-                resources.forEach(function(item) {
+                const setResources = new Set(resources);
+                assert.equal(setResources.size, 28);
+                setResources.forEach(function(item) {
                     assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
                 });
                 done();
@@ -166,8 +173,9 @@ describe('walk-manifest', function() {
 
             walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
                 // 3 m3u8 and 8 * 2 segments
-                assert.equal(resources.length, 19);
-                resources.forEach(function(item) {
+                const setResources = new Set(resources);
+                assert.equal(setResources.size, 19);
+                setResources.forEach(function(item) {
                     assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
                     assert(item.uri !== TEST_URL + '/var256000/playlist.m3u8');
                 });
@@ -190,8 +198,9 @@ describe('walk-manifest', function() {
 
             walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
                 // 3 m3u8 and 8 * 2 segments
-                assert.equal(resources.length, 19);
-                resources.forEach(function(item) {
+                const setResources = new Set(resources);
+                assert.equal(setResources.size, 19);
+                setResources.forEach(function(item) {
                     assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
                     assert(item.uri !== TEST_URL + '/var256000/playlist.m3u8');
                 });
@@ -214,8 +223,9 @@ describe('walk-manifest', function() {
 
             walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
                 // 3 m3u8 and 8 * 2 segments
-                assert.equal(resources.length, 19);
-                resources.forEach(function(item) {
+                const setResources = new Set(resources);
+                assert.equal(setResources.size, 19);
+                setResources.forEach(function(item) {
                     assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
                     assert(item.uri !== TEST_URL + '/var256000/playlist.m3u8');
                 });
@@ -238,8 +248,9 @@ describe('walk-manifest', function() {
 
             walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
                 // 4 m3u8 and 8 * 2 segments
-                assert.equal(resources.length, 20);
-                resources.forEach(function(item) {
+                const setResources = new Set(resources);
+                assert.equal(setResources.size, 20);
+                setResources.forEach(function(item) {
                     assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
                 });
                 // We should still get the invalid m3u8
@@ -266,8 +277,9 @@ describe('walk-manifest', function() {
 
             walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
                 // 3 m3u8 and 8 * 2 segments
-                assert.equal(resources.length, 19);
-                resources.forEach(function(item) {
+                const setResources = new Set(resources);
+                assert.equal(setResources.size, 19);
+                setResources.forEach(function(item) {
                     assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
                 });
                 // We should not get the timed out m3u8
