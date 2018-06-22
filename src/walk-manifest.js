@@ -80,7 +80,7 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent, callback)
   }
 
   // get the aes key
-  request({url: keyUri, encoding: null}, function(error, response, body) {
+  request({url: keyUri, encoding: null, timeout: 1500}, function(error, response, body) {
     if (error) {
       console.error('Failed to get key', error, keyUri);
       return callback({});
@@ -138,7 +138,7 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, callba
     parent.content = new Buffer(parent.content.toString().replace(uri, path.relative(path.dirname(parent.file), manifest.file)));
   }
 
-  request(manifest.uri, function(error, response, body) {
+  request({url: manifest.uri, timeout: 1500}, function(error, response, body) {
     if (error) {
       console.error('Failed to get key', error, manifest.uri);
       return callback(null, resources);
@@ -147,7 +147,7 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, callba
       console.error('Failed to get key', response.statusCode, manifest.uri);
       return callback(null, resources);
     }
-    // Only push value manifest uris
+    // Only push manifest uris that get a non 200 and don't timeout
     resources.push(manifest);
 
     manifest.content = body;
