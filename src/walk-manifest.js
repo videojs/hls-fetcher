@@ -76,6 +76,15 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent, callback)
 
   // get the aes key
   request({url: keyUri, encoding: null}, function(error, response, body) {
+    if (error) {
+      console.error('Failed to get key', error, keyUri);
+      return callback({});
+    }
+    if (response.statusCode !== 200) {
+      console.error('Failed to get key', response.statusCode, keyUri);
+      return callback({});
+    }
+
     var keyContent = body;
     key.bytes = new Uint32Array([
       keyContent.readUInt32BE(0),
@@ -126,6 +135,14 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, callba
   }
 
   request(manifest.uri, function(error, response, body) {
+    if (error) {
+      console.error('Failed to get key', error, manifest.uri);
+      return callback(resources);
+    }
+    if (response.statusCode !== 200) {
+      console.error('Failed to get key', response.statusCode, manifest.uri);
+      return callback(resources);
+    }
 
     manifest.content = body;
 
