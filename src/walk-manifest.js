@@ -25,6 +25,9 @@ var isAbsolute = function(uri) {
   return false;
 };
 
+// This is used to detect cycles in manifests
+const vistedUrls = [];
+
 var mediaGroupPlaylists = function(mediaGroups) {
   var playlists = [];
   ['AUDIO', 'VIDEO', 'CLOSED-CAPTIONS', 'SUBTITLES'].forEach(function(type) {
@@ -52,7 +55,7 @@ var parseManifest = function(content) {
 
 var parseKey = function(basedir, decrypt, resources, manifest, parent, callback) {
   if (!manifest.parsed.segments[0] || !manifest.parsed.segments[0].key) {
-    return callback({});
+    return callback(null, {});
   }
   var key = manifest.parsed.segments[0].key;
 
@@ -76,18 +79,20 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent, callback)
     ));
     key.uri = keyUri;
     resources.push(key);
-    return callback(key);
+    return callback(null, key);
   }
 
   // get the aes key
   request({url: keyUri, encoding: null, timeout: 1500}, function(error, response, body) {
     if (error) {
-      console.error('Failed to get key', error, keyUri);
-      return callback({});
+      const keyError = new Error(error.message + '|' + keyUri);
+      console.error(keyError, error);
+      return callback(keyError, {});
     }
     if (response.statusCode !== 200) {
-      console.error('Failed to get key', response.statusCode, keyUri);
-      return callback({});
+      const keyError = new Error(response.statusCode + '|' + keyUri);
+      console.error(keyError);
+      return callback(keyError, {});
     }
 
     var keyContent = body;
@@ -105,7 +110,7 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent, callback)
     ));
 
 
-    return callback(key);
+    return callback(null, key);
   });
 };
 
@@ -138,17 +143,26 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, callba
     parent.content = new Buffer(parent.content.toString().replace(uri, path.relative(path.dirname(parent.file), manifest.file)));
   }
 
+  if (vistedUrls.includes(manifest.uri)) {
+    const manifestError = new Error('Trying to visit the same uri again; stuck in a cycle|' + manifest.uri);
+    console.error(manifestError);
+    return callback(manifestError, null, resources);
+  }
+
   request({url: manifest.uri, timeout: 1500}, function(error, response, body) {
     if (error) {
-      console.error('Failed to get key', error, manifest.uri);
-      return callback(null, resources);
+      const manifestError = new Error(error.message + '|' + manifest.uri);
+      console.error(manifestError, error);
+      return callback(manifestError, null, resources);
     }
     if (response.statusCode !== 200) {
-      console.error('Failed to get key', response.statusCode, manifest.uri);
-      return callback(null, resources);
+      const manifestError = new Error(response.statusCode + '|' + manifest.uri);
+      console.error(manifestError);
+      return callback(manifestError, null, resources);
     }
     // Only push manifest uris that get a non 200 and don't timeout
     resources.push(manifest);
+    vistedUrls.push(manifest.uri);
 
     manifest.content = body;
 
@@ -158,7 +172,7 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, callba
     manifest.parsed.mediaGroups = manifest.parsed.mediaGroups || {};
 
     var playlists = manifest.parsed.playlists.concat(mediaGroupPlaylists(manifest.parsed.mediaGroups));
-    parseKey(basedir, decrypt, resources, manifest, parent, function(key) {
+    parseKey(basedir, decrypt, resources, manifest, parent, function(err, key) {
       // SEGMENTS
       manifest.parsed.segments.forEach(function(s, i) {
         if (!s.uri) {
@@ -181,15 +195,53 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, callba
       });
 
       // SUB Playlists
-      async.map(playlists, function(p, cb) {
+      // The reflect is used so we can still continue running even if one of the playlists is broken.
+      async.map(playlists, async.reflect(function(p, cb) {
         if (!p.uri) {
           return cb(null);
         }
         walkPlaylist(decrypt, basedir, p.uri, manifest, playlists.indexOf(p), cb);
-      }, function(err, results) {
-        var flattened = [].concat.apply([], results);
-        resources = resources.concat(flattened);
-        callback(null, resources);
+      }), function(err, reflectedResults) {
+
+        console.log('REFLECTED FOR URI ' + manifest.uri)
+        console.log('****************************')
+        console.log(reflectedResults)
+        console.log('****************************')
+
+        // err will always be null from reflect
+        // Collect an array of errors and resources for all sub playlists
+        const errors = [];
+        const results = [];
+        reflectedResults.forEach(function(r) {
+          if (r.error) {
+            errors.push(r.error)
+          } else if (r.value) {
+            results.push(r.value)
+          }
+        });
+        const flattenedResource = [].concat.apply([], results);
+        resources = resources.concat(flattenedResource);
+
+        // We can have an array of errors from sub playlists too
+        const nestedErrors = [].concat.apply([], errors);
+
+
+        console.log('VALUES FOR URI ' + manifest.uri)
+        console.log('****************************')
+        console.log('ERROR')
+        console.log(nestedErrors)
+        console.log('RESOURCES')
+        console.log(resources)
+        console.log('****************************')
+
+
+        // If there are no errors we should callback with null
+        // We haven't gotten any top level errors if we're here just errors from the sub playlists
+        if (!nestedErrors && nestedErrors.length === 0) {
+          callback(null, null, resources);
+        } else {
+          callback(null, nestedErrors, resources);
+        }
       });
     });
   });
