@@ -114,13 +114,14 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent, callback)
   });
 };
 
-var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, callback) {
+var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, continueOnError, callback) {
 
   // Default parameters
   if (!callback) {
     callback = parent;
     parent = false;
     manifestIndex = 0;
+    continueOnError = false;
   }
 
   var resources = [];
@@ -146,19 +147,31 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, callba
   if (vistedUrls.includes(manifest.uri)) {
     const manifestError = new Error('Trying to visit the same uri again; stuck in a cycle|' + manifest.uri);
     console.error(manifestError);
-    return callback(manifestError, null, resources);
+    if (continueOnError) {
+      resources.push(manifestError);
+      return callback(null, resources);
+    }
+    return callback(manifestError);
   }
 
   request({url: manifest.uri, timeout: 1500}, function(error, response, body) {
     if (error) {
       const manifestError = new Error(error.message + '|' + manifest.uri);
       console.error(manifestError, error);
-      return callback(manifestError, null, resources);
+      if (continueOnError) {
+        resources.push(manifestError);
+        return callback(null, resources);
+      }
+      return callback(manifestError);
     }
     if (response.statusCode !== 200) {
       const manifestError = new Error(response.statusCode + '|' + manifest.uri);
       console.error(manifestError);
-      return callback(manifestError, null, resources);
+      if (continueOnError) {
+        resources.push(manifestError);
+        return callback(null, resources);
+      }
+      return callback(manifestError);
     }
     // Only push manifest uris that get a non 200 and don't timeout
     resources.push(manifest);
@@ -200,52 +213,30 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, callba
         if (!p.uri) {
           return cb(null);
         }
-        walkPlaylist(decrypt, basedir, p.uri, manifest, playlists.indexOf(p), cb);
+        walkPlaylist(decrypt, basedir, p.uri, manifest, playlists.indexOf(p), continueOnError, cb);
       }), function(err, reflectedResults) {
 
-        console.log('REFLECTED FOR URI ' + manifest.uri)
-        console.log('****************************')
+        console.log('**** ' + manifest.uri)
         console.log(reflectedResults)
-        console.log('****************************')
 
-        // err will always be null from reflect
-        // Collect an array of errors and resources for all sub playlists
-        const errors = [];
+
         const results = [];
         reflectedResults.forEach(function(r) {
-          if (r.error) {
-            errors.push(r.error)
-          } else if (r.value) {
+          if (r.error && !continueOnError) {
+            console.error('Exiting early continueOnError false...');
+            return callback(r.error);
+          }
+          if (r.value) {
             results.push(r.value)
           }
         });
         const flattenedResource = [].concat.apply([], results);
         resources = resources.concat(flattenedResource);
-
-        // We can have an array of errors from sub playlists too
-        const nestedErrors = [].concat.apply([], errors);
-
-
-        console.log('VALUES FOR URI ' + manifest.uri)
-        console.log('****************************')
-        console.log('ERROR')
-        console.log(nestedErrors)
-        console.log('RESOURCES')
-        console.log(resources)
-        console.log('****************************')
-
-
-        // If there are no errors we should callback with null
-        // We haven't gotten any top level errors if we're here just errors from the sub playlists
-        if (!nestedErrors && nestedErrors.length === 0) {
-          callback(null, null, resources);
-        } else {
-          callback(null, nestedErrors, resources);
-        }
+        console.error('Should not');
+        return callback(null, resources);
       });
     });
   });
-
 };
 
 module.exports = walkPlaylist;

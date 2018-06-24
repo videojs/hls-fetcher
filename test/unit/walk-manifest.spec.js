@@ -64,32 +64,48 @@ describe('walk-manifest', function() {
       });
     });
 
-    it('should not get stuck for a cycle of m3u8 and short circuit if trying to visit same url again', function(done) {
+    xit('should not get stuck and short circuit for a cycle and not throw an top level error on continueOnError true', function(done) {
 
       nock(TEST_URL)
         .get('/cycle1.m3u8')
-        .times(4)
         .replyWithFile(200, `${process.cwd()}/test/resources/cycle1.m3u8`)
         .get('/cycle2.m3u8')
-        .times(4)
         .replyWithFile(200, `${process.cwd()}/test/resources/cycle2.m3u8`);
 
-      walker(false, '.', TEST_URL + '/cycle1.m3u8', function(topErr, nestedErr, resources) {
-        console.log('**************************')
-        console.log(topErr)
-        console.log(nestedErr)
-        console.log(resources)
-        console.log('**************************')
+      walker(false, '.', TEST_URL + '/cycle1.m3u8', false, 0, true, function(topError, resources) {
 
-        assert(!topErr);
-        assert.equal(nestedErr.length, 1);
-        assert.equal(nestedErr[0].message, 'Trying to visit the same uri again; stuck in a cycle|' + TEST_URL + '/cycle1.m3u8');
-        // 2 m3u8
+
+        assert(!topError);
+
+        // 2 m3u8 1 error
         const setResources = new Set(resources);
-        assert.equal(setResources.size, 2);
-        setResources.forEach(function(item) {
+        assert.equal(setResources.size, 3);
+
+        const nestedErrors = resources.filter(e => e instanceof Error);
+        const validResources = resources.filter(r => 'uri' in r);
+
+        assert(nestedErrors.find(o => o.message === 'Trying to visit the same uri again; stuck in a cycle|' + TEST_URL + '/cycle1.m3u8'));
+
+        validResources.forEach(function(item) {
           assert(item.uri.includes('.m3u8'));
         });
+        done();
+      });
+    });
+
+    it('should not get stuck and throw an top level error for a cycle on continueOnError false', function(done) {
+
+      nock(TEST_URL)
+        .get('/cycle1.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/cycle1.m3u8`)
+        .get('/cycle2.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/cycle2.m3u8`);
+
+      walker(false, '.', TEST_URL + '/cycle1.m3u8', function(topError, resources) {
+        console.log("ERR")
+        console.log(topError)
+        assert.equal(topError.message, 'Trying to visit the same uri again; stuck in a cycle|' + TEST_URL + '/cycle1.m3u8');
+        assert(!resources);
         done();
       });
     });
