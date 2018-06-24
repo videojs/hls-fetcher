@@ -26,7 +26,12 @@ var isAbsolute = function(uri) {
 };
 
 // This is used to detect cycles in manifests
-const vistedUrls = [];
+var visitedUrls = [];
+
+var clearVisited = function() {
+  visitedUrls = []
+  return;
+};
 
 var mediaGroupPlaylists = function(mediaGroups) {
   var playlists = [];
@@ -144,7 +149,7 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, contin
     parent.content = new Buffer(parent.content.toString().replace(uri, path.relative(path.dirname(parent.file), manifest.file)));
   }
 
-  if (vistedUrls.includes(manifest.uri)) {
+  if (visitedUrls.includes(manifest.uri)) {
     const manifestError = new Error('Trying to visit the same uri again; stuck in a cycle|' + manifest.uri);
     console.error(manifestError);
     if (continueOnError) {
@@ -175,7 +180,7 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, contin
     }
     // Only push manifest uris that get a non 200 and don't timeout
     resources.push(manifest);
-    vistedUrls.push(manifest.uri);
+    visitedUrls.push(manifest.uri);
 
     manifest.content = body;
 
@@ -215,16 +220,13 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, contin
         }
         walkPlaylist(decrypt, basedir, p.uri, manifest, playlists.indexOf(p), continueOnError, cb);
       }), function(err, reflectedResults) {
-
-        console.log('**** ' + manifest.uri)
-        console.log(reflectedResults)
-
-
         const results = [];
+        let callbackTopError;
+
         reflectedResults.forEach(function(r) {
           if (r.error && !continueOnError) {
-            console.error('Exiting early continueOnError false...');
-            return callback(r.error);
+            console.error('Exiting early continueOnError false...|' + manifest.uri);
+            callbackTopError = r.error;
           }
           if (r.value) {
             results.push(r.value)
@@ -232,11 +234,16 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, contin
         });
         const flattenedResource = [].concat.apply([], results);
         resources = resources.concat(flattenedResource);
-        console.error('Should not');
-        return callback(null, resources);
+
+        if (callbackTopError) {
+          return callback(callbackTopError);
+        } else {
+          return callback(null, resources);
+        }
       });
     });
   });
 };
 
 module.exports = walkPlaylist;
+module.exports.clearVisited = clearVisited;

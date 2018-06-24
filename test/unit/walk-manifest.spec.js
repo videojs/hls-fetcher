@@ -9,7 +9,11 @@ const TEST_URL = 'http://manifest-list-test.com';
 describe('walk-manifest', function() {
   describe('walkPlaylist', function() {
 
-    xit('should return just m3u8 for empty m3u8', function(done) {
+    beforeEach(function() {
+      walker.clearVisited();
+    });
+
+    it('should return just m3u8 for empty m3u8', function(done) {
 
       nock(TEST_URL)
         .get('/test.m3u8')
@@ -26,7 +30,7 @@ describe('walk-manifest', function() {
       });
     });
 
-    xit('should return just segments for simple m3u8', function(done) {
+    it('should return just segments for simple m3u8', function(done) {
 
       nock(TEST_URL)
         .get('/test.m3u8')
@@ -44,7 +48,7 @@ describe('walk-manifest', function() {
       });
     });
 
-    xit('should follow http redirects for simple m3u8', function(done) {
+    it('should follow http redirects for simple m3u8', function(done) {
 
       nock(TEST_URL)
         .get('/test.m3u8')
@@ -64,7 +68,7 @@ describe('walk-manifest', function() {
       });
     });
 
-    xit('should not get stuck and short circuit for a cycle and not throw an top level error on continueOnError true', function(done) {
+    it('should not get stuck and short circuit for a cycle and not throw an top level error on continueOnError true', function(done) {
 
       nock(TEST_URL)
         .get('/cycle1.m3u8')
@@ -73,19 +77,13 @@ describe('walk-manifest', function() {
         .replyWithFile(200, `${process.cwd()}/test/resources/cycle2.m3u8`);
 
       walker(false, '.', TEST_URL + '/cycle1.m3u8', false, 0, true, function(topError, resources) {
-
-
         assert(!topError);
-
         // 2 m3u8 1 error
         const setResources = new Set(resources);
         assert.equal(setResources.size, 3);
-
         const nestedErrors = resources.filter(e => e instanceof Error);
         const validResources = resources.filter(r => 'uri' in r);
-
         assert(nestedErrors.find(o => o.message === 'Trying to visit the same uri again; stuck in a cycle|' + TEST_URL + '/cycle1.m3u8'));
-
         validResources.forEach(function(item) {
           assert(item.uri.includes('.m3u8'));
         });
@@ -93,7 +91,7 @@ describe('walk-manifest', function() {
       });
     });
 
-    it('should not get stuck and throw an top level error for a cycle on continueOnError false', function(done) {
+    it('should not get stuck and throw a top level error for a cycle on continueOnError false', function(done) {
 
       nock(TEST_URL)
         .get('/cycle1.m3u8')
@@ -102,15 +100,13 @@ describe('walk-manifest', function() {
         .replyWithFile(200, `${process.cwd()}/test/resources/cycle2.m3u8`);
 
       walker(false, '.', TEST_URL + '/cycle1.m3u8', function(topError, resources) {
-        console.log("ERR")
-        console.log(topError)
         assert.equal(topError.message, 'Trying to visit the same uri again; stuck in a cycle|' + TEST_URL + '/cycle1.m3u8');
         assert(!resources);
         done();
       });
     });
 
-    xit('should return nothing if server takes too long to respond with m3u8', function(done) {
+    it('should return top level error if server takes too long to respond with top level m3u8 on continueOnError false', function(done) {
       this.timeout(3000);
 
       // We timeout if the server doesn't respond within 1.5s
@@ -121,12 +117,32 @@ describe('walk-manifest', function() {
 
       walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
         assert.equal(err.message, 'ESOCKETTIMEDOUT|' + TEST_URL + '/test.m3u8');
-        assert.equal(resources.length, 0);
+        assert(!resources);
         done();
       });
     });
 
-    xit('should return just original m3u8 for invalid m3u8 and not break', function(done) {
+    it('should return error in resources not top error if server takes too long to respond m3u8 on continueOnError true', function(done) {
+      this.timeout(3000);
+
+      // We timeout if the server doesn't respond within 1.5s
+      nock(TEST_URL)
+        .get('/test.m3u8')
+        .delayConnection(2000)
+        .replyWithFile(200, `${process.cwd()}/test/resources/simple.m3u8`);
+
+      walker(false, '.', TEST_URL + '/test.m3u8', false, 0, true, function(topError, resources) {
+        assert(!topError);
+        // 1 error
+        const setResources = new Set(resources);
+        assert.equal(setResources.size, 1);
+        const nestedErrors = resources.filter(e => e instanceof Error);
+        assert(nestedErrors.find(o => o.message === 'ESOCKETTIMEDOUT|' + TEST_URL + '/test.m3u8'));
+        done();
+      });
+    });
+
+    it('should return just original m3u8 for invalid m3u8 and not break', function(done) {
       nock(TEST_URL)
         .get('/test.m3u8')
         .reply(200, 'not a valid m3u8');
@@ -141,7 +157,7 @@ describe('walk-manifest', function() {
       });
     });
 
-    xit('should return just segments for m3u8 with sub playlists', function(done) {
+    it('should return just segments for m3u8 with sub playlists', function(done) {
 
       nock(TEST_URL)
         .get('/test.m3u8')
@@ -152,7 +168,6 @@ describe('walk-manifest', function() {
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var386000/playlist.m3u8`)
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
-
 
       walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
         assert(!err);
@@ -166,7 +181,7 @@ describe('walk-manifest', function() {
       });
     });
 
-    xit('should return just segments for m3u8 with sub playlists with a redirect', function(done) {
+    it('should return just segments for m3u8 with sub playlists with a redirect', function(done) {
 
       nock(TEST_URL)
         .get('/test.m3u8')
@@ -192,7 +207,7 @@ describe('walk-manifest', function() {
       });
     });
 
-    xit('should for one sub playlist getting 404 should get 404 error but have rest of valid segments/manifests', function(done) {
+    it('should for one sub playlist getting 404 should get top level 404 error on continueOnError false', function(done) {
 
       nock(TEST_URL)
         .get('/test.m3u8')
@@ -204,22 +219,43 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-
       walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
-        assert.equal(err.length, 1);
-        assert.equal(err[0].message, '404|' + TEST_URL + '/var256000/playlist.m3u8');
-        // 3 m3u8 and 8 * 2 segments
+        assert.equal(err.message, '404|' + TEST_URL + '/var256000/playlist.m3u8');
+        assert(!resources);
+        done();
+      });
+    });
+
+    it('should for one sub playlist getting 404 get 404 error but the rest of valid resources on continueOnError true', function(done) {
+
+      nock(TEST_URL)
+        .get('/test.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/playlist.m3u8`)
+        .get('/var256000/playlist.m3u8')
+        .reply(404)
+        .get('/var386000/playlist.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var386000/playlist.m3u8`)
+        .get('/var500000/playlist.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
+
+      walker(false, '.', TEST_URL + '/test.m3u8', false, 0, true, function(topError, resources) {
+        assert(!topError);
+        // 3 m3u8 and 8 * 2 segments and 1 error
         const setResources = new Set(resources);
-        assert.equal(setResources.size, 19);
-        setResources.forEach(function(item) {
+        assert.equal(setResources.size, 20);
+        const nestedErrors = resources.filter(e => e instanceof Error);
+        const validResources = resources.filter(r => 'uri' in r);
+        assert(nestedErrors.find(o => o.message === '404|' + TEST_URL + '/var256000/playlist.m3u8'));
+        validResources.forEach(function(item) {
           assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
+          // We shouldn't get the bad manifest
           assert(item.uri !== TEST_URL + '/var256000/playlist.m3u8');
         });
         done();
       });
     });
 
-    xit('should for one sub playlist getting 500 should get 500 error but have rest of valid segments/manifests', function(done) {
+    it('should for one sub playlist getting 500 should get top level 500 error on continueOnError false', function(done) {
 
       nock(TEST_URL)
         .get('/test.m3u8')
@@ -233,20 +269,42 @@ describe('walk-manifest', function() {
 
 
       walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
-        assert.equal(err.length, 1);
-        assert.equal(err[0].message, '500|' + TEST_URL + '/var256000/playlist.m3u8');
-        // 3 m3u8 and 8 * 2 segments
+        assert.equal(err.message, '500|' + TEST_URL + '/var256000/playlist.m3u8');
+        assert(!resources);
+        done();
+      });
+    });
+
+    it('should for one sub playlist getting 500 get 500 error but the rest of valid resources on continueOnError true', function(done) {
+
+      nock(TEST_URL)
+        .get('/test.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/playlist.m3u8`)
+        .get('/var256000/playlist.m3u8')
+        .reply(500)
+        .get('/var386000/playlist.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var386000/playlist.m3u8`)
+        .get('/var500000/playlist.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
+
+      walker(false, '.', TEST_URL + '/test.m3u8', false, 0, true, function(topError, resources) {
+        assert(!topError);
+        // 3 m3u8 and 8 * 2 segments and 1 error
         const setResources = new Set(resources);
-        assert.equal(setResources.size, 19);
-        setResources.forEach(function(item) {
+        assert.equal(setResources.size, 20);
+        const nestedErrors = resources.filter(e => e instanceof Error);
+        const validResources = resources.filter(r => 'uri' in r);
+        assert(nestedErrors.find(o => o.message === '500|' + TEST_URL + '/var256000/playlist.m3u8'));
+        validResources.forEach(function(item) {
           assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
+          // We shouldn't get the bad manifest
           assert(item.uri !== TEST_URL + '/var256000/playlist.m3u8');
         });
         done();
       });
     });
 
-    xit('should for one sub playlist throwing error should get error but have rest of valid segments/manifests', function(done) {
+    it('should for one sub playlist throwing error should get top level error continueOnError false', function(done) {
 
       nock(TEST_URL)
         .get('/test.m3u8')
@@ -258,14 +316,34 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-
       walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
-        assert.equal(err.length, 1);
-        assert.equal(err[0].message, 'something awful happened|' + TEST_URL + '/var256000/playlist.m3u8');
-        // 3 m3u8 and 8 * 2 segments
+        assert.equal(err.message, 'something awful happened|' + TEST_URL + '/var256000/playlist.m3u8');
+        assert(!resources);
+        done();
+      });
+    });
+
+    it('should for one sub playlist throwing error should get error but have rest of valid segments/manifests continueOnError true', function(done) {
+
+      nock(TEST_URL)
+        .get('/test.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/playlist.m3u8`)
+        .get('/var256000/playlist.m3u8')
+        .replyWithError('something awful happened')
+        .get('/var386000/playlist.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var386000/playlist.m3u8`)
+        .get('/var500000/playlist.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
+
+      walker(false, '.', TEST_URL + '/test.m3u8', false, 0, true, function(topError, resources) {
+        assert(!topError);
+        // 3 m3u8 and 8 * 2 segments and 1 error
         const setResources = new Set(resources);
-        assert.equal(setResources.size, 19);
-        setResources.forEach(function(item) {
+        assert.equal(setResources.size, 20);
+        const nestedErrors = resources.filter(e => e instanceof Error);
+        const validResources = resources.filter(r => 'uri' in r);
+        assert(nestedErrors.find(o => o.message === 'something awful happened|' + TEST_URL + '/var256000/playlist.m3u8'));
+        validResources.forEach(function(item) {
           assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
           assert(item.uri !== TEST_URL + '/var256000/playlist.m3u8');
         });
@@ -273,7 +351,7 @@ describe('walk-manifest', function() {
       });
     });
 
-    xit('should return not break if sub playlist is not a valid m3u8', function(done) {
+    it('should return not break if sub playlist is not a valid m3u8', function(done) {
 
       nock(TEST_URL)
         .get('/test.m3u8')
@@ -284,7 +362,6 @@ describe('walk-manifest', function() {
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var386000/playlist.m3u8`)
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
-
 
       walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
         assert(!err);
@@ -301,7 +378,7 @@ describe('walk-manifest', function() {
     });
 
 
-    xit('should skip sub playlist if it too long to respond with m3u8', function(done) {
+    it('should throw top level error if sub playlist takes too long to respond with m3u8 continueOnError false', function(done) {
       this.timeout(3000);
 
       nock(TEST_URL)
@@ -317,21 +394,41 @@ describe('walk-manifest', function() {
 
 
       walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
-        assert.equal(err.length, 1);
-        assert.equal(err[0].message, 'ESOCKETTIMEDOUT|' + TEST_URL + '/var500000/playlist.m3u8');
-        // 3 m3u8 and 8 * 2 segments
-        const setResources = new Set(resources);
-        assert.equal(setResources.size, 19);
-        setResources.forEach(function(item) {
-          assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
-        });
-        // We should not get the timed out m3u8
-        assert(resources.filter(e => e.uri === TEST_URL + '/var500000/playlist.m3u8').length === 0);
+        assert.equal(err.message, 'ESOCKETTIMEDOUT|' + TEST_URL + '/var500000/playlist.m3u8');
+        assert(!resources);
         done();
       });
-
     });
 
+    it('should have error for sub playlist takes too long to respond with m3u8 but have rest of resources continueOnError true', function(done) {
+      this.timeout(3000);
 
+      nock(TEST_URL)
+        .get('/test.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/playlist.m3u8`)
+        .get('/var256000/playlist.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var256000/playlist.m3u8`)
+        .get('/var386000/playlist.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var386000/playlist.m3u8`)
+        .get('/var500000/playlist.m3u8')
+        .delayConnection(2000)
+        .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
+
+      walker(false, '.', TEST_URL + '/test.m3u8', false, 0, true, function(topError, resources) {
+        assert(!topError);
+        // 3 m3u8 and 8 * 2 segments and 1 error
+        const setResources = new Set(resources);
+        assert.equal(setResources.size, 20);
+        const nestedErrors = resources.filter(e => e instanceof Error);
+        const validResources = resources.filter(r => 'uri' in r);
+        assert(nestedErrors.find(o => o.message === 'ESOCKETTIMEDOUT|' + TEST_URL + '/var500000/playlist.m3u8'));
+        validResources.forEach(function(item) {
+          assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
+          // We shouldn't get the bad manifest
+          assert(item.uri !== TEST_URL + '/var500000/playlist.m3u8');
+        });
+        done();
+      });
+    });
   });
 });
