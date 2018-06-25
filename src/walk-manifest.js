@@ -80,7 +80,7 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent, callback)
   }
 
   // get the aes key
-  request({url: keyUri, encoding: null, timeout: 1500}, function(error, response, body) {
+  request({url: keyUri, encoding: null, timeout: 1500}, function(error, response, keyContent) {
     if (error) {
       const keyError = new Error(error.message + '|' + keyUri);
       console.error(keyError, error);
@@ -92,7 +92,6 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent, callback)
       return callback(keyError);
     }
 
-    var keyContent = body;
     key.bytes = new Uint32Array([
       keyContent.readUInt32BE(0),
       keyContent.readUInt32BE(4),
@@ -119,7 +118,16 @@ var walkPlaylist = function(options, callback) {
     uri,
     parent = false,
     manifestIndex = 0,
-    continueOnError = false,
+    onError = function(err, resources, callback) {
+      // We get arrays back for sub playlist errors
+      if (err instanceof Array) {
+        // Just take first error we got a blow up
+        var e = err[0];
+        callback(e)
+      } else {
+        callback(err)
+      }
+    },
     visitedUrls = []
   } = options;
 
@@ -145,32 +153,17 @@ var walkPlaylist = function(options, callback) {
 
   if (visitedUrls.includes(manifest.uri)) {
     const manifestError = new Error('Trying to visit the same uri again; stuck in a cycle|' + manifest.uri);
-    console.error(manifestError);
-    if (continueOnError) {
-      resources.push(manifestError);
-      return callback(null, resources);
-    }
-    return callback(manifestError);
+    return onError(manifestError, resources, callback);
   }
 
   request({url: manifest.uri, timeout: 1500}, function(error, response, body) {
     if (error) {
       const manifestError = new Error(error.message + '|' + manifest.uri);
-      console.error(manifestError, error);
-      if (continueOnError) {
-        resources.push(manifestError);
-        return callback(null, resources);
-      }
-      return callback(manifestError);
+      return onError(manifestError, resources, callback);
     }
     if (response.statusCode !== 200) {
       const manifestError = new Error(response.statusCode + '|' + manifest.uri);
-      console.error(manifestError);
-      if (continueOnError) {
-        resources.push(manifestError);
-        return callback(null, resources);
-      }
-      return callback(manifestError);
+      return onError(manifestError, resources, callback);
     }
     // Only push manifest uris that get a non 200 and don't timeout
     resources.push(manifest);
@@ -218,27 +211,29 @@ var walkPlaylist = function(options, callback) {
           uri: p.uri,
           parent: manifest,
           manifestIndex: playlists.indexOf(p),
-          continueOnError,
+          onError,
           visitedUrls
         }, cb);
       }), function(err, reflectedResults) {
         var results = [];
-        var callbackTopError;
+        var errors = [];
 
         reflectedResults.forEach(function(r) {
-          if (r.error && !continueOnError) {
-            console.error('Exiting early continueOnError false...|' + manifest.uri);
-            callbackTopError = r.error;
+          if (r.error) {
+            errors.push(r.error);
           }
           if (r.value) {
             results.push(r.value)
           }
         });
+
         var flattenedResource = [].concat.apply([], results);
         resources = resources.concat(flattenedResource);
 
-        if (callbackTopError) {
-          return callback(callbackTopError);
+        var flattenedErrors = [].concat.apply([], errors);
+
+        if (flattenedErrors.length !== 0) {
+          return onError(flattenedErrors, resources, callback);
         } else {
           return callback(null, resources);
         }
