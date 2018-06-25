@@ -7,8 +7,6 @@ var walker = require('../../src/walk-manifest');
 var TEST_URL = 'http://manifest-list-test.com';
 
 
-const flatten = arr => arr.reduce((r, c) => r.concat(Array.isArray(c) ? flatten(c) : c), []);
-
 describe('walk-manifest', function() {
   describe('walkPlaylist', function() {
 
@@ -95,7 +93,6 @@ describe('walk-manifest', function() {
       var errors = [];
       var addErrorIntoErrors = function(err, resources, callback) {
         errors.push(err);
-        errors = flatten(errors);
         callback(null, resources);
       };
 
@@ -158,7 +155,6 @@ describe('walk-manifest', function() {
       var errors = [];
       var addErrorIntoErrors = function(err, resources, callback) {
         errors.push(err);
-        errors = flatten(errors);
         callback(null, resources);
       };
 
@@ -274,7 +270,6 @@ describe('walk-manifest', function() {
       var errors = [];
       var addErrorIntoErrors = function(err, resources, callback) {
         errors.push(err);
-        errors = flatten(errors);
         callback(null, resources);
       };
 
@@ -332,7 +327,6 @@ describe('walk-manifest', function() {
       var errors = [];
       var addErrorIntoErrors = function(err, resources, callback) {
         errors.push(err);
-        errors = flatten(errors);
         callback(null, resources);
       };
 
@@ -389,7 +383,6 @@ describe('walk-manifest', function() {
       var errors = [];
       var addErrorIntoErrors = function(err, resources, callback) {
         errors.push(err);
-        errors = flatten(errors);
         callback(null, resources);
       };
 
@@ -478,7 +471,6 @@ describe('walk-manifest', function() {
       var errors = [];
       var addErrorIntoErrors = function(err, resources, callback) {
         errors.push(err);
-        errors = flatten(errors);
         callback(null, resources);
       };
 
