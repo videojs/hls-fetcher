@@ -1,10 +1,10 @@
-const assert = require('assert');
-const nock = require('nock');
+var assert = require('assert');
+var nock = require('nock');
 nock.disableNetConnect();
 nock.enableNetConnect(/localhost/);
-const walker = require('../../src/walk-manifest');
+var walker = require('../../src/walk-manifest');
 
-const TEST_URL = 'http://manifest-list-test.com';
+var TEST_URL = 'http://manifest-list-test.com';
 
 describe('walk-manifest', function() {
   describe('walkPlaylist', function() {
@@ -16,10 +16,10 @@ describe('walk-manifest', function() {
         .get('/test.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/empty.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
       walker(options, function(err, resources) {
         assert(!err);
-        const setResources = new Set(resources);
+        var setResources = new Set(resources);
         assert.equal(setResources.size, 1);
         setResources.forEach(function(item) {
           assert(item.uri.includes('.m3u8'));
@@ -34,11 +34,11 @@ describe('walk-manifest', function() {
         .get('/test.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/simple.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
       walker(options, function(err, resources) {
         assert(!err);
         // m3u8 and 11 segments
-        const setResources = new Set(resources);
+        var setResources = new Set(resources);
         assert.equal(setResources.size, 12);
         setResources.forEach(function(item) {
           assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
@@ -55,11 +55,11 @@ describe('walk-manifest', function() {
         .get('/redirect.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/simple.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
       walker(options, function(err, resources) {
         assert(!err);
         // m3u8 and 11 segments
-        const setResources = new Set(resources);
+        var setResources = new Set(resources);
         assert.equal(setResources.size, 12);
         setResources.forEach(function(item) {
           assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
@@ -76,14 +76,14 @@ describe('walk-manifest', function() {
         .get('/cycle2.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/cycle2.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/cycle1.m3u8', continueOnError: true};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/cycle1.m3u8', continueOnError: true};
       walker(options, function(topError, resources) {
         assert(!topError);
         // 2 m3u8 1 error
-        const setResources = new Set(resources);
+        var setResources = new Set(resources);
         assert.equal(setResources.size, 3);
-        const nestedErrors = resources.filter(e => e instanceof Error);
-        const validResources = resources.filter(r => 'uri' in r);
+        var nestedErrors = resources.filter(e => e instanceof Error);
+        var validResources = resources.filter(r => 'uri' in r);
         assert(nestedErrors.find(o => o.message === 'Trying to visit the same uri again; stuck in a cycle|' + TEST_URL + '/cycle1.m3u8'));
         validResources.forEach(function(item) {
           assert(item.uri.includes('.m3u8'));
@@ -100,7 +100,7 @@ describe('walk-manifest', function() {
         .get('/cycle2.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/cycle2.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/cycle1.m3u8'};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/cycle1.m3u8'};
       walker(options, function(topError, resources) {
         assert.equal(topError.message, 'Trying to visit the same uri again; stuck in a cycle|' + TEST_URL + '/cycle1.m3u8');
         assert(!resources);
@@ -117,7 +117,7 @@ describe('walk-manifest', function() {
         .delayConnection(2000)
         .replyWithFile(200, `${process.cwd()}/test/resources/simple.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
       walker(options, function(err, resources) {
         assert.equal(err.message, 'ESOCKETTIMEDOUT|' + TEST_URL + '/test.m3u8');
         assert(!resources);
@@ -134,13 +134,13 @@ describe('walk-manifest', function() {
         .delayConnection(2000)
         .replyWithFile(200, `${process.cwd()}/test/resources/simple.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
       walker(options, function(topError, resources) {
         assert(!topError);
         // 1 error
-        const setResources = new Set(resources);
+        var setResources = new Set(resources);
         assert.equal(setResources.size, 1);
-        const nestedErrors = resources.filter(e => e instanceof Error);
+        var nestedErrors = resources.filter(e => e instanceof Error);
         assert(nestedErrors.find(o => o.message === 'ESOCKETTIMEDOUT|' + TEST_URL + '/test.m3u8'));
         done();
       });
@@ -151,7 +151,7 @@ describe('walk-manifest', function() {
         .get('/test.m3u8')
         .reply(200, 'not a valid m3u8');
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
       walker(options, function(err, resources) {
         assert(!err);
         assert.equal(resources.length, 1);
@@ -174,11 +174,11 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
       walker(options, function(err, resources) {
         assert(!err);
         // 4 m3u8 and 8 * 3 segments
-        const setResources = new Set(resources);
+        var setResources = new Set(resources);
         assert.equal(setResources.size, 28);
         setResources.forEach(function(item) {
           assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
@@ -201,11 +201,11 @@ describe('walk-manifest', function() {
         .get('/redirect.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
       walker(options, function(err, resources) {
         assert(!err);
         // 4 m3u8 and 8 * 3 segments
-        const setResources = new Set(resources);
+        var setResources = new Set(resources);
         assert.equal(setResources.size, 28);
         setResources.forEach(function(item) {
           assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
@@ -226,7 +226,7 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
       walker(options, function(err, resources) {
         assert.equal(err.message, '404|' + TEST_URL + '/var256000/playlist.m3u8');
         assert(!resources);
@@ -246,14 +246,14 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
       walker(options, function(topError, resources) {
         assert(!topError);
         // 3 m3u8 and 8 * 2 segments and 1 error
-        const setResources = new Set(resources);
+        var setResources = new Set(resources);
         assert.equal(setResources.size, 20);
-        const nestedErrors = resources.filter(e => e instanceof Error);
-        const validResources = resources.filter(r => 'uri' in r);
+        var nestedErrors = resources.filter(e => e instanceof Error);
+        var validResources = resources.filter(r => 'uri' in r);
         assert(nestedErrors.find(o => o.message === '404|' + TEST_URL + '/var256000/playlist.m3u8'));
         validResources.forEach(function(item) {
           assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
@@ -277,7 +277,7 @@ describe('walk-manifest', function() {
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
       walker(options, function(err, resources) {
         assert.equal(err.message, '500|' + TEST_URL + '/var256000/playlist.m3u8');
         assert(!resources);
@@ -297,14 +297,14 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
       walker(options, function(topError, resources) {
         assert(!topError);
         // 3 m3u8 and 8 * 2 segments and 1 error
-        const setResources = new Set(resources);
+        var setResources = new Set(resources);
         assert.equal(setResources.size, 20);
-        const nestedErrors = resources.filter(e => e instanceof Error);
-        const validResources = resources.filter(r => 'uri' in r);
+        var nestedErrors = resources.filter(e => e instanceof Error);
+        var validResources = resources.filter(r => 'uri' in r);
         assert(nestedErrors.find(o => o.message === '500|' + TEST_URL + '/var256000/playlist.m3u8'));
         validResources.forEach(function(item) {
           assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
@@ -327,7 +327,7 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
       walker(options, function(err, resources) {
         assert.equal(err.message, 'something awful happened|' + TEST_URL + '/var256000/playlist.m3u8');
         assert(!resources);
@@ -347,14 +347,14 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
       walker(options, function(topError, resources) {
         assert(!topError);
         // 3 m3u8 and 8 * 2 segments and 1 error
-        const setResources = new Set(resources);
+        var setResources = new Set(resources);
         assert.equal(setResources.size, 20);
-        const nestedErrors = resources.filter(e => e instanceof Error);
-        const validResources = resources.filter(r => 'uri' in r);
+        var nestedErrors = resources.filter(e => e instanceof Error);
+        var validResources = resources.filter(r => 'uri' in r);
         assert(nestedErrors.find(o => o.message === 'something awful happened|' + TEST_URL + '/var256000/playlist.m3u8'));
         validResources.forEach(function(item) {
           assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
@@ -376,11 +376,11 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
       walker(options, function(err, resources) {
         assert(!err);
         // 4 m3u8 and 8 * 2 segments
-        const setResources = new Set(resources);
+        var setResources = new Set(resources);
         assert.equal(setResources.size, 20);
         setResources.forEach(function(item) {
           assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
@@ -406,7 +406,7 @@ describe('walk-manifest', function() {
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
       walker(options, function(err, resources) {
         assert.equal(err.message, 'ESOCKETTIMEDOUT|' + TEST_URL + '/var500000/playlist.m3u8');
         assert(!resources);
@@ -428,14 +428,14 @@ describe('walk-manifest', function() {
         .delayConnection(2000)
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
       walker(options, function(topError, resources) {
         assert(!topError);
         // 3 m3u8 and 8 * 2 segments and 1 error
-        const setResources = new Set(resources);
+        var setResources = new Set(resources);
         assert.equal(setResources.size, 20);
-        const nestedErrors = resources.filter(e => e instanceof Error);
-        const validResources = resources.filter(r => 'uri' in r);
+        var nestedErrors = resources.filter(e => e instanceof Error);
+        var validResources = resources.filter(r => 'uri' in r);
         assert(nestedErrors.find(o => o.message === 'ESOCKETTIMEDOUT|' + TEST_URL + '/var500000/playlist.m3u8'));
         validResources.forEach(function(item) {
           assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));

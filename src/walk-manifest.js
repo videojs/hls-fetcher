@@ -222,8 +222,8 @@ var walkPlaylist = function(options, callback) {
           visitedUrls
         }, cb);
       }), function(err, reflectedResults) {
-        const results = [];
-        let callbackTopError;
+        var results = [];
+        var callbackTopError;
 
         reflectedResults.forEach(function(r) {
           if (r.error && !continueOnError) {
@@ -234,7 +234,7 @@ var walkPlaylist = function(options, callback) {
             results.push(r.value)
           }
         });
-        const flattenedResource = [].concat.apply([], results);
+        var flattenedResource = [].concat.apply([], results);
         resources = resources.concat(flattenedResource);
 
         if (callbackTopError) {
