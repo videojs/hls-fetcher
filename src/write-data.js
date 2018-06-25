@@ -47,7 +47,7 @@ var decryptFile = function(content, encryption) {
   });
 };
 
-var WriteData = function(decrypt, concurrency, resources) {
+var WriteData = function(decrypt, concurrency, resources, callback) {
   var inProgress = [];
   var operations = [];
 
@@ -77,7 +77,7 @@ var WriteData = function(decrypt, concurrency, resources) {
   }, {concurrency: concurrency}).all(function(o) {
     console.log('DONE!');
     return Promise.resolve();
-  });
+  }).asCallback(callback);
 };
 
 module.exports = WriteData;

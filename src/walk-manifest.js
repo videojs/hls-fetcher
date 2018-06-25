@@ -81,6 +81,7 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent, callback)
 
   // get the aes key
   request({url: keyUri, encoding: null, timeout: 1500}, function(error, response, keyContent) {
+    // TODO: do we even care about key errors; currently we just keep going and ignore them.
     if (error) {
       const keyError = new Error(error.message + '|' + keyUri);
       console.error(keyError, error);
