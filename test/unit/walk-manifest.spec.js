@@ -9,9 +9,6 @@ const TEST_URL = 'http://manifest-list-test.com';
 describe('walk-manifest', function() {
   describe('walkPlaylist', function() {
 
-    beforeEach(function() {
-      walker.clearVisited();
-    });
 
     it('should return just m3u8 for empty m3u8', function(done) {
 
@@ -19,7 +16,8 @@ describe('walk-manifest', function() {
         .get('/test.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/empty.m3u8`);
 
-      walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      walker(options, function(err, resources) {
         assert(!err);
         const setResources = new Set(resources);
         assert.equal(setResources.size, 1);
@@ -36,7 +34,8 @@ describe('walk-manifest', function() {
         .get('/test.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/simple.m3u8`);
 
-      walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      walker(options, function(err, resources) {
         assert(!err);
         // m3u8 and 11 segments
         const setResources = new Set(resources);
@@ -56,7 +55,8 @@ describe('walk-manifest', function() {
         .get('/redirect.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/simple.m3u8`);
 
-      walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      walker(options, function(err, resources) {
         assert(!err);
         // m3u8 and 11 segments
         const setResources = new Set(resources);
@@ -76,7 +76,8 @@ describe('walk-manifest', function() {
         .get('/cycle2.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/cycle2.m3u8`);
 
-      walker(false, '.', TEST_URL + '/cycle1.m3u8', false, 0, true, function(topError, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/cycle1.m3u8', continueOnError: true};
+      walker(options, function(topError, resources) {
         assert(!topError);
         // 2 m3u8 1 error
         const setResources = new Set(resources);
@@ -99,7 +100,8 @@ describe('walk-manifest', function() {
         .get('/cycle2.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/cycle2.m3u8`);
 
-      walker(false, '.', TEST_URL + '/cycle1.m3u8', function(topError, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/cycle1.m3u8'};
+      walker(options, function(topError, resources) {
         assert.equal(topError.message, 'Trying to visit the same uri again; stuck in a cycle|' + TEST_URL + '/cycle1.m3u8');
         assert(!resources);
         done();
@@ -115,7 +117,8 @@ describe('walk-manifest', function() {
         .delayConnection(2000)
         .replyWithFile(200, `${process.cwd()}/test/resources/simple.m3u8`);
 
-      walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      walker(options, function(err, resources) {
         assert.equal(err.message, 'ESOCKETTIMEDOUT|' + TEST_URL + '/test.m3u8');
         assert(!resources);
         done();
@@ -131,7 +134,8 @@ describe('walk-manifest', function() {
         .delayConnection(2000)
         .replyWithFile(200, `${process.cwd()}/test/resources/simple.m3u8`);
 
-      walker(false, '.', TEST_URL + '/test.m3u8', false, 0, true, function(topError, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
+      walker(options, function(topError, resources) {
         assert(!topError);
         // 1 error
         const setResources = new Set(resources);
@@ -147,7 +151,8 @@ describe('walk-manifest', function() {
         .get('/test.m3u8')
         .reply(200, 'not a valid m3u8');
 
-      walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      walker(options, function(err, resources) {
         assert(!err);
         assert.equal(resources.length, 1);
         resources.forEach(function(item) {
@@ -169,7 +174,8 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      walker(options, function(err, resources) {
         assert(!err);
         // 4 m3u8 and 8 * 3 segments
         const setResources = new Set(resources);
@@ -195,7 +201,8 @@ describe('walk-manifest', function() {
         .get('/redirect.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      walker(options, function(err, resources) {
         assert(!err);
         // 4 m3u8 and 8 * 3 segments
         const setResources = new Set(resources);
@@ -219,7 +226,8 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      walker(options, function(err, resources) {
         assert.equal(err.message, '404|' + TEST_URL + '/var256000/playlist.m3u8');
         assert(!resources);
         done();
@@ -238,7 +246,8 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      walker(false, '.', TEST_URL + '/test.m3u8', false, 0, true, function(topError, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
+      walker(options, function(topError, resources) {
         assert(!topError);
         // 3 m3u8 and 8 * 2 segments and 1 error
         const setResources = new Set(resources);
@@ -268,7 +277,8 @@ describe('walk-manifest', function() {
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
 
-      walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      walker(options, function(err, resources) {
         assert.equal(err.message, '500|' + TEST_URL + '/var256000/playlist.m3u8');
         assert(!resources);
         done();
@@ -287,7 +297,8 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      walker(false, '.', TEST_URL + '/test.m3u8', false, 0, true, function(topError, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
+      walker(options, function(topError, resources) {
         assert(!topError);
         // 3 m3u8 and 8 * 2 segments and 1 error
         const setResources = new Set(resources);
@@ -316,7 +327,8 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      walker(options, function(err, resources) {
         assert.equal(err.message, 'something awful happened|' + TEST_URL + '/var256000/playlist.m3u8');
         assert(!resources);
         done();
@@ -335,7 +347,8 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      walker(false, '.', TEST_URL + '/test.m3u8', false, 0, true, function(topError, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
+      walker(options, function(topError, resources) {
         assert(!topError);
         // 3 m3u8 and 8 * 2 segments and 1 error
         const setResources = new Set(resources);
@@ -351,7 +364,7 @@ describe('walk-manifest', function() {
       });
     });
 
-    it('should return not break if sub playlist is not a valid m3u8', function(done) {
+    it('should not break if sub playlist is not a valid m3u8', function(done) {
 
       nock(TEST_URL)
         .get('/test.m3u8')
@@ -363,7 +376,8 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      walker(options, function(err, resources) {
         assert(!err);
         // 4 m3u8 and 8 * 2 segments
         const setResources = new Set(resources);
@@ -376,7 +390,6 @@ describe('walk-manifest', function() {
         done();
       });
     });
-
 
     it('should throw top level error if sub playlist takes too long to respond with m3u8 continueOnError false', function(done) {
       this.timeout(3000);
@@ -393,7 +406,8 @@ describe('walk-manifest', function() {
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
 
-      walker(false, '.', TEST_URL + '/test.m3u8', function(err, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8'};
+      walker(options, function(err, resources) {
         assert.equal(err.message, 'ESOCKETTIMEDOUT|' + TEST_URL + '/var500000/playlist.m3u8');
         assert(!resources);
         done();
@@ -414,7 +428,8 @@ describe('walk-manifest', function() {
         .delayConnection(2000)
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
-      walker(false, '.', TEST_URL + '/test.m3u8', false, 0, true, function(topError, resources) {
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', continueOnError: true};
+      walker(options, function(topError, resources) {
         assert(!topError);
         // 3 m3u8 and 8 * 2 segments and 1 error
         const setResources = new Set(resources);

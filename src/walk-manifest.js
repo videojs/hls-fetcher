@@ -25,14 +25,6 @@ var isAbsolute = function(uri) {
   return false;
 };
 
-// This is used to detect cycles in manifests
-var visitedUrls = [];
-
-var clearVisited = function() {
-  visitedUrls = []
-  return;
-};
-
 var mediaGroupPlaylists = function(mediaGroups) {
   var playlists = [];
   ['AUDIO', 'VIDEO', 'CLOSED-CAPTIONS', 'SUBTITLES'].forEach(function(type) {
@@ -92,12 +84,12 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent, callback)
     if (error) {
       const keyError = new Error(error.message + '|' + keyUri);
       console.error(keyError, error);
-      return callback(keyError, {});
+      return callback(keyError);
     }
     if (response.statusCode !== 200) {
       const keyError = new Error(response.statusCode + '|' + keyUri);
       console.error(keyError);
-      return callback(keyError, {});
+      return callback(keyError);
     }
 
     var keyContent = body;
@@ -119,15 +111,17 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent, callback)
   });
 };
 
-var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, continueOnError, callback) {
+var walkPlaylist = function(options, callback) {
 
-  // Default parameters
-  if (!callback) {
-    callback = parent;
-    parent = false;
-    manifestIndex = 0;
-    continueOnError = false;
-  }
+  var {
+    decrypt,
+    basedir,
+    uri,
+    parent = false,
+    manifestIndex = 0,
+    continueOnError = false,
+    visitedUrls = []
+  } = options;
 
   var resources = [];
   var manifest = {};
@@ -218,7 +212,15 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, contin
         if (!p.uri) {
           return cb(null);
         }
-        walkPlaylist(decrypt, basedir, p.uri, manifest, playlists.indexOf(p), continueOnError, cb);
+        walkPlaylist({
+          decrypt,
+          basedir,
+          uri: p.uri,
+          parent: manifest,
+          manifestIndex: playlists.indexOf(p),
+          continueOnError,
+          visitedUrls
+        }, cb);
       }), function(err, reflectedResults) {
         const results = [];
         let callbackTopError;
@@ -246,4 +248,3 @@ var walkPlaylist = function(decrypt, basedir, uri, parent, manifestIndex, contin
 };
 
 module.exports = walkPlaylist;
-module.exports.clearVisited = clearVisited;
