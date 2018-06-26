@@ -112,21 +112,19 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent, callback)
 };
 
 var walkPlaylist = function(options, callback) {
-
   var {
     decrypt,
     basedir,
     uri,
     parent = false,
     manifestIndex = 0,
-    onError = function(err, resources, callback) {
-      // We get arrays back for sub playlist errors
-      if (err instanceof Array) {
-        // Just take first error we got a blow up
-        var e = err[0];
-        callback(e)
+    onError = function(err, uri, resources, callback) {
+      // Avoid adding the top level uri to nested errors
+      if (err.message.includes('|')) {
+        return callback(err);
       } else {
-        callback(err)
+        var errWithUri = new Error(err.message + '|' + uri);
+        return callback(errWithUri);
       }
     },
     visitedUrls = []
@@ -153,18 +151,18 @@ var walkPlaylist = function(options, callback) {
   }
 
   if (visitedUrls.includes(manifest.uri)) {
-    const manifestError = new Error('Trying to visit the same uri again; stuck in a cycle|' + manifest.uri);
-    return onError(manifestError, resources, callback);
+    var manifestError = new Error('Trying to visit the same uri again; stuck in a cycle');
+    return onError(manifestError, manifest.uri, resources, callback);
   }
 
   request({url: manifest.uri, timeout: 1500}, function(error, response, body) {
     if (error) {
-      const manifestError = new Error(error.message + '|' + manifest.uri);
-      return onError(manifestError, resources, callback);
+      return onError(error, manifest.uri, resources, callback);
     }
     if (response.statusCode !== 200) {
-      const manifestError = new Error(response.statusCode + '|' + manifest.uri);
-      return onError(manifestError, resources, callback);
+      var manifestError = new Error(response.statusCode + '|' + manifest.uri);
+      manifestError.reponse = response;
+      return onError(manifestError, manifest.uri, resources, callback);
     }
     // Only push manifest uris that get a non 200 and don't timeout
     resources.push(manifest);
@@ -202,9 +200,9 @@ var walkPlaylist = function(options, callback) {
 
       // SUB Playlists
       // The reflect is used so we can still continue running even if one of the playlists is broken.
-      async.map(playlists, async.reflect(function(p, cb) {
+      async.map(playlists, function(p, cb) {
         if (!p.uri) {
-          return cb(null);
+          return cb(null, null);
         }
         walkPlaylist({
           decrypt,
@@ -215,26 +213,11 @@ var walkPlaylist = function(options, callback) {
           onError,
           visitedUrls
         }, cb);
-      }), function(err, reflectedResults) {
-        var results = [];
-        var errors = [];
-
-        reflectedResults.forEach(function(r) {
-          if (r.error) {
-            errors.push(r.error);
-          }
-          if (r.value) {
-            results.push(r.value)
-          }
-        });
-
+      }, function(err, results) {
         var flattenedResource = [].concat.apply([], results);
         resources = resources.concat(flattenedResource);
-
-        var flattenedErrors = [].concat.apply([], errors);
-
-        if (flattenedErrors.length !== 0) {
-          return onError(flattenedErrors, resources, callback);
+        if (err) {
+          return onError(err, manifest.uri, resources, callback);
         } else {
           return callback(null, resources);
         }
