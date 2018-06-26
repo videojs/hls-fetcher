@@ -202,7 +202,7 @@ var walkPlaylist = function(options, callback) {
       // The reflect is used so we can still continue running even if one of the playlists is broken.
       async.map(playlists, function(p, cb) {
         if (!p.uri) {
-          return cb(null, null);
+          return cb(null, []);
         }
         walkPlaylist({
           decrypt,

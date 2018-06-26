@@ -6,6 +6,19 @@ var walker = require('../../src/walk-manifest');
 
 var TEST_URL = 'http://manifest-list-test.com';
 
+var customError = function(errors) {
+  return function (err, uri, resources, callback) {
+    // Avoid adding the top level uri to nested errors
+    if (err instanceof Error && err.message.includes('|'))
+      errors.push(err);
+    if (err instanceof Error)
+      errors.push(new Error(err.message + '|' + uri));
+    else
+      errors.push(new Error(err.statusCode + '|' + uri));
+
+    callback(null, resources);
+  }
+};
 
 describe('walk-manifest', function() {
   describe('walkPlaylist', function() {
@@ -160,19 +173,8 @@ describe('walk-manifest', function() {
         .replyWithFile(200, `${process.cwd()}/test/resources/simple.m3u8`);
 
       var errors = [];
-      var addErrorIntoErrors = function(err, uri, resources, callback) {
-        // Avoid adding the top level uri to nested errors
-        if (err instanceof Error && err.message.includes('|'))
-          errors.push(err);
-        if (err instanceof Error)
-          errors.push(new Error(err.message + '|' + uri));
-        else
-          errors.push(new Error(err.statusCode + '|' + uri));
 
-        callback(null, resources);
-      };
-
-      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', onError: addErrorIntoErrors};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', onError: customError(errors)};
       walker(options, function(topError, resources) {
         assert(!topError);
         assert.equal(resources.length, 0);
@@ -282,19 +284,8 @@ describe('walk-manifest', function() {
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
       var errors = [];
-      var addErrorIntoErrors = function(err, uri, resources, callback) {
-        // Avoid adding the top level uri to nested errors
-        if (err instanceof Error && err.message.includes('|'))
-          errors.push(err);
-        if (err instanceof Error)
-          errors.push(new Error(err.message + '|' + uri));
-        else
-          errors.push(new Error(err.statusCode + '|' + uri));
 
-        callback(null, resources);
-      };
-
-      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', onError: addErrorIntoErrors};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', onError: customError(errors)};
       walker(options, function(topError, resources) {
         assert(!topError);
         // 3 m3u8 and 8 * 2 segments
@@ -344,19 +335,8 @@ describe('walk-manifest', function() {
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
 
       var errors = [];
-      var addErrorIntoErrors = function(err, uri, resources, callback) {
-        // Avoid adding the top level uri to nested errors
-        if (err instanceof Error && err.message.includes('|'))
-          errors.push(err);
-        if (err instanceof Error)
-          errors.push(new Error(err.message + '|' + uri));
-        else
-          errors.push(new Error(err.statusCode + '|' + uri));
 
-        callback(null, resources);
-      };
-
-      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', onError: addErrorIntoErrors};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', onError: customError(errors)};
       walker(options, function(topError, resources) {
         assert(!topError);
         // 3 m3u8 and 8 * 2 segments
@@ -407,19 +387,8 @@ describe('walk-manifest', function() {
 
 
       var errors = [];
-      var addErrorIntoErrors = function(err, uri, resources, callback) {
-        // Avoid adding the top level uri to nested errors
-        if (err instanceof Error && err.message.includes('|'))
-          errors.push(err);
-        if (err instanceof Error)
-          errors.push(new Error(err.message + '|' + uri));
-        else
-          errors.push(new Error(err.statusCode + '|' + uri));
 
-        callback(null, resources);
-      };
-
-      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', onError: addErrorIntoErrors};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', onError: customError(errors)};
       walker(options, function(topError, resources) {
         assert(!topError);
         // 3 m3u8 and 8 * 2 segments
@@ -500,19 +469,8 @@ describe('walk-manifest', function() {
 
 
       var errors = [];
-      var addErrorIntoErrors = function(err, uri, resources, callback) {
-        // Avoid adding the top level uri to nested errors
-        if (err instanceof Error && err.message.includes('|'))
-          errors.push(err);
-        if (err instanceof Error)
-          errors.push(new Error(err.message + '|' + uri));
-        else
-          errors.push(new Error(err.statusCode + '|' + uri));
 
-        callback(null, resources);
-      };
-
-      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', onError: addErrorIntoErrors};
+      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', onError: customError(errors)};
       walker(options, function(topError, resources) {
         assert(!topError);
         // 3 m3u8 and 8 * 2 segments
