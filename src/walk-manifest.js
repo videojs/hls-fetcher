@@ -1,6 +1,5 @@
 var m3u8 = require('m3u8-parser');
 var request = require('requestretry');
-var async = require('async');
 var url = require('url');
 var path = require('path');
 var fs = require('fs');
