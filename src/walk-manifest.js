@@ -1,5 +1,5 @@
 var m3u8 = require('m3u8-parser');
-var request = require('request');
+var request = require('requestretry');
 var async = require('async');
 var url = require('url');
 var path = require('path');
@@ -50,7 +50,7 @@ var parseManifest = function(content) {
   return parser.manifest;
 };
 
-var parseKey = function(basedir, decrypt, resources, manifest, parent, callback) {
+var parseKey = function(requestOptions, basedir, decrypt, resources, manifest, parent, callback) {
   if (!manifest.parsed.segments[0] || !manifest.parsed.segments[0].key) {
     return callback(null, {});
   }
@@ -79,8 +79,11 @@ var parseKey = function(basedir, decrypt, resources, manifest, parent, callback)
     return callback(null, key);
   }
 
+  requestOptions.url = keyUri;
+  requestOptions.encoding = null;
+
   // get the aes key
-  request({url: keyUri, encoding: null, timeout: 1500}, function(error, response, keyContent) {
+  request(requestOptions, function(error, response, keyContent) {
     // TODO: do we even care about key errors; currently we just keep going and ignore them.
     if (error) {
       const keyError = new Error(error.message + '|' + keyUri);
@@ -127,7 +130,10 @@ var walkPlaylist = function(options, callback) {
         return callback(errWithUri);
       }
     },
-    visitedUrls = []
+    visitedUrls = [],
+    requestTimeout = 1500,
+    requestRetryMaxAttempts = 5,
+    requestRetryDelay = 5000
   } = options;
 
   var resources = [];
@@ -155,7 +161,12 @@ var walkPlaylist = function(options, callback) {
     return onError(manifestError, manifest.uri, resources, callback);
   }
 
-  request({url: manifest.uri, timeout: 1500}, function(error, response, body) {
+  request({
+    url: manifest.uri,
+    timeout: requestTimeout,
+    maxAttempts: requestRetryMaxAttempts,
+    retryDelay: requestRetryDelay
+  }, function(error, response, body) {
     if (error) {
       return onError(error, manifest.uri, resources, callback);
     }
@@ -176,7 +187,11 @@ var walkPlaylist = function(options, callback) {
     manifest.parsed.mediaGroups = manifest.parsed.mediaGroups || {};
 
     var playlists = manifest.parsed.playlists.concat(mediaGroupPlaylists(manifest.parsed.mediaGroups));
-    parseKey(basedir, decrypt, resources, manifest, parent, function(err, key) {
+    parseKey({
+      time: requestTimeout,
+      maxAttempts: requestRetryMaxAttempts,
+      retryDelay: requestRetryDelay
+    }, basedir, decrypt, resources, manifest, parent, function(err, key) {
       // SEGMENTS
       manifest.parsed.segments.forEach(function(s, i) {
         if (!s.uri) {
@@ -211,7 +226,10 @@ var walkPlaylist = function(options, callback) {
           parent: manifest,
           manifestIndex: playlists.indexOf(p),
           onError,
-          visitedUrls
+          visitedUrls,
+          requestTimeout,
+          requestRetryMaxAttempts,
+          requestRetryDelay
         }, cb);
       }, function(err, results) {
         var flattenedResource = [].concat.apply([], results);

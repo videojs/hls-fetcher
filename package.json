@@ -30,7 +30,6 @@
     "mkdirp": "^0.5.1",
     "pessimist": "^0.3.5",
     "promise-streams": "^1.0.1",
-    "request": "^2.87.0",
     "requestretry": "^1.8.0"
   },
   "devDependencies": {
