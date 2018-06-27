@@ -162,8 +162,10 @@ var walkPlaylist = function(options) {
     }
 
     if (visitedUrls.includes(manifest.uri)) {
-      var manifestError = new Error('Trying to visit the same uri again; stuck in a cycle');
-      return onError(manifestError, manifest.uri, resources, resolve, reject);
+      var manifestError = new Error('[WARN] Trying to visit the same uri again; skipping to avoid getting stuck in a cycle');
+      manifestError.uri = manifest.uri;
+      console.error(manifestError);
+      return resolve(resources);
     }
 
     request({

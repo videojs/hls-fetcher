@@ -96,7 +96,7 @@ describe('walk-manifest', function() {
         });
     });
 
-    it('should not get stuck and short circuit for a cycle and not throw an top level error on custom onError', function(done) {
+    it('should not get stuck and short circuit for a cycle and throw no errors', function(done) {
       nock(TEST_URL)
         .get('/cycle1.m3u8')
         .replyWithFile(200, `${process.cwd()}/test/resources/cycle1.m3u8`)
@@ -108,35 +108,18 @@ describe('walk-manifest', function() {
         decrypt: false,
         basedir: '.',
         uri: TEST_URL + '/cycle1.m3u8',
-        onError: customError(errors),
         requestRetryMaxAttempts: 0
       };
       walker(options)
         .then(function(resources) {
           var setResources = new Set(resources);
           assert.equal(setResources.size, 2);         // 2 m3u8
-          assert.equal(errors.length, 1);             // 1 error
-          assert(errors.find(o => o.message === 'Trying to visit the same uri again; stuck in a cycle|' + TEST_URL + '/cycle1.m3u8'));
+          assert.equal(errors.length, 0);             // no errors on cycle
           resources.forEach(function(item) {
             assert(item.uri.includes('.m3u8'));
           });
           done();
         })
-    });
-
-    it('should not get stuck and throw a top level error for a cycle on default onError', function(done) {
-      nock(TEST_URL)
-        .get('/cycle1.m3u8')
-        .replyWithFile(200, `${process.cwd()}/test/resources/cycle1.m3u8`)
-        .get('/cycle2.m3u8')
-        .replyWithFile(200, `${process.cwd()}/test/resources/cycle2.m3u8`);
-
-      var options = {decrypt: false, basedir: '.', uri: TEST_URL + '/cycle1.m3u8', requestRetryMaxAttempts: 0};
-      walker(options)
-        .catch(function(err) {
-          assert(err.message === 'Trying to visit the same uri again; stuck in a cycle|' + TEST_URL + '/cycle1.m3u8');
-          done();
-        });
     });
 
     it('should return top level error if server takes too long to respond with top level m3u8 on default onError', function(done) {
