@@ -507,7 +507,7 @@ describe('walk-manifest', function() {
         .get('/var500000/playlist.m3u8')
         .delayConnection(100)
         .replyWithFile(200, `${process.cwd()}/test/resources/with-sub-manifest/var500000/playlist.m3u8`);
-      
+
       var errors = [];
       var options = {
         decrypt: false,

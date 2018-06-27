@@ -172,81 +172,82 @@ var walkPlaylist = function(options) {
       timeout: requestTimeout,
       maxAttempts: requestRetryMaxAttempts,
       retryDelay: requestRetryDelay
-    }, function(error, response, body) {
-      if (error) {
-        return onError(error, manifest.uri, resources, resolve, reject);
-      }
-      if (response.statusCode !== 200) {
-        var manifestError = new Error(response.statusCode + '|' + manifest.uri);
-        manifestError.reponse = response;
-        return onError(manifestError, manifest.uri, resources, resolve, reject);
-      }
-      // Only push manifest uris that get a non 200 and don't timeout
-      resources.push(manifest);
-      visitedUrls.push(manifest.uri);
+    })
+      .then(function(response) {
+        if (response.statusCode !== 200) {
+          var manifestError = new Error(response.statusCode + '|' + manifest.uri);
+          manifestError.reponse = response;
+          return onError(manifestError, manifest.uri, resources, resolve, reject);
+        }
+        // Only push manifest uris that get a non 200 and don't timeout
+        resources.push(manifest);
+        visitedUrls.push(manifest.uri);
 
-      manifest.content = body;
+        manifest.content = response.body;
 
-      manifest.parsed = parseManifest(manifest.content);
-      manifest.parsed.segments = manifest.parsed.segments || [];
-      manifest.parsed.playlists = manifest.parsed.playlists || [];
-      manifest.parsed.mediaGroups = manifest.parsed.mediaGroups || {};
+        manifest.parsed = parseManifest(manifest.content);
+        manifest.parsed.segments = manifest.parsed.segments || [];
+        manifest.parsed.playlists = manifest.parsed.playlists || [];
+        manifest.parsed.mediaGroups = manifest.parsed.mediaGroups || {};
 
-      var playlists = manifest.parsed.playlists.concat(mediaGroupPlaylists(manifest.parsed.mediaGroups));
-      parseKey({
-        time: requestTimeout,
-        maxAttempts: requestRetryMaxAttempts,
-        retryDelay: requestRetryDelay
-      }, basedir, decrypt, resources, manifest, parent).then(function(key) {
-        // SEGMENTS
-        manifest.parsed.segments.forEach(function(s, i) {
-          if (!s.uri) {
-            return;
-          }
-          // put segments in manifest-name/segment-name.ts
-          s.file = path.join(path.dirname(manifest.file), fsSanitize(path.basename(s.uri)));
-          if (!isAbsolute(s.uri)) {
-            s.uri = joinURI(path.dirname(manifest.uri), s.uri);
-          }
-          if (key) {
-            s.key = key;
-            s.key.iv = s.key.iv || new Uint32Array([0, 0, 0, manifest.parsed.mediaSequence, i]);
-          }
-          manifest.content = new Buffer(manifest.content.toString().replace(
-            s.uri,
-            path.relative(path.dirname(manifest.file), s.file)
-          ));
-          resources.push(s);
-        });
+        var playlists = manifest.parsed.playlists.concat(mediaGroupPlaylists(manifest.parsed.mediaGroups));
+        parseKey({
+          time: requestTimeout,
+          maxAttempts: requestRetryMaxAttempts,
+          retryDelay: requestRetryDelay
+        }, basedir, decrypt, resources, manifest, parent).then(function(key) {
+          // SEGMENTS
+          manifest.parsed.segments.forEach(function(s, i) {
+            if (!s.uri) {
+              return;
+            }
+            // put segments in manifest-name/segment-name.ts
+            s.file = path.join(path.dirname(manifest.file), fsSanitize(path.basename(s.uri)));
+            if (!isAbsolute(s.uri)) {
+              s.uri = joinURI(path.dirname(manifest.uri), s.uri);
+            }
+            if (key) {
+              s.key = key;
+              s.key.iv = s.key.iv || new Uint32Array([0, 0, 0, manifest.parsed.mediaSequence, i]);
+            }
+            manifest.content = new Buffer(manifest.content.toString().replace(
+              s.uri,
+              path.relative(path.dirname(manifest.file), s.file)
+            ));
+            resources.push(s);
+          });
 
-        // SUB Playlists
-        const subs = playlists.map(function(p, z) {
-          if (!p.uri) {
-            return Promise().resolve(resources);
-          }
-          return walkPlaylist({
-            decrypt,
-            basedir,
-            uri: p.uri,
-            parent: manifest,
-            manifestIndex: z,
-            onError,
-            visitedUrls,
-            requestTimeout,
-            requestRetryMaxAttempts,
-            requestRetryDelay
+          // SUB Playlists
+          const subs = playlists.map(function(p, z) {
+            if (!p.uri) {
+              return Promise().resolve(resources);
+            }
+            return walkPlaylist({
+              decrypt,
+              basedir,
+              uri: p.uri,
+              parent: manifest,
+              manifestIndex: z,
+              onError,
+              visitedUrls,
+              requestTimeout,
+              requestRetryMaxAttempts,
+              requestRetryDelay
+            });
+          });
+
+          Promise.all(subs).then(function(r) {
+            const flatten = [].concat.apply([], r);
+            resources = resources.concat(flatten);
+            resolve(resources);
+          }).catch(function(err) {
+            onError(err, manifest.uri, resources, resolve, reject)
           });
         });
-
-        Promise.all(subs).then(function(r) {
-          const flatten = [].concat.apply([], r);
-          resources = resources.concat(flatten);
-          resolve(resources);
-        }).catch(function(err) {
-          onError(err, manifest.uri, resources, resolve, reject)
-        });
+      })
+      .catch(function(err) {
+        onError(err, manifest.uri, resources, resolve, reject);
       });
-    });
   });
 };
 
