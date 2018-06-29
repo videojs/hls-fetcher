@@ -4,7 +4,7 @@
   "description": "Fetch HLS segments from an m3u8 playlist",
   "main": "src/index.js",
   "scripts": {
-    "test": "echo 'No tests to run'"
+    "test": "NODE_ENV=test mocha --opts test/opts/unit.opts test/unit"
   },
   "bin": {
     "hls-fetcher": "./src/cli.js"
@@ -29,7 +29,10 @@
     "mkdirp": "^0.5.1",
     "pessimist": "^0.3.5",
     "promise-streams": "^1.0.1",
-    "requestretry": "^1.8.0",
-    "sync-request": "^3.0.1"
+    "requestretry": "^1.8.0"
+  },
+  "devDependencies": {
+    "mocha": "^5.2.0",
+    "nock": "^9.3.3"
   }
 }
