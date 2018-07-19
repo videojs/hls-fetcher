@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/imbcmdth/hls-fetcher#readme",
   "dependencies": {
-    "aes-decrypter": "^1.0.2",
+    "aes-decrypter": "^2.0.0",
     "bluebird": "^3.4.0",
     "m3u8-parser": "^1.0.2",
     "mkdirp": "^0.5.1",
