@@ -1,14 +1,16 @@
-var WalkManifest = require('./walk-manifest');
-var WriteData = require('./write-data');
+/* eslint-disable no-console */
+const WalkManifest = require('./walk-manifest');
+const WriteData = require('./write-data');
 
-var main = function(options) {
-  console.log("Gathering Manifest data...");
-  var options = {decrypt: options.decrypt, basedir: options.output, uri: options.input};
-  return WalkManifest(options)
+const main = function(options) {
+  console.log('Gathering Manifest data...');
+  const settings = {decrypt: options.decrypt, basedir: options.output, uri: options.input};
+
+  return WalkManifest(settings)
     .then(function(resources) {
-      console.log("Downloading additional data...");
+      console.log('Downloading additional data...');
       return WriteData(options.decrypt, options.concurrency, resources);
-    })
+    });
 };
 
 module.exports = main;

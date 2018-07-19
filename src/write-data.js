@@ -1,11 +1,12 @@
-var Promise = require('bluebird');
-var mkdirp = Promise.promisify(require('mkdirp'));
-var request = require('requestretry');
-var fs = Promise.promisifyAll(require('fs'));
-var aesDecrypter = require('aes-decrypter').Decrypter;
-var path = require('path');
+/* eslint-disable no-console */
+const Promise = require('bluebird');
+const mkdirp = Promise.promisify(require('mkdirp'));
+const request = require('requestretry');
+const fs = Promise.promisifyAll(require('fs'));
+const AesDecrypter = require('aes-decrypter').Decrypter;
+const path = require('path');
 
-var writeFile = function(file, content) {
+const writeFile = function(file, content) {
   return mkdirp(path.dirname(file)).then(function() {
     return fs.writeFileAsync(file, content);
   }).then(function() {
@@ -13,13 +14,17 @@ var writeFile = function(file, content) {
   });
 };
 
-var requestFile = function(uri) {
-  var options = {
-    uri: uri,
-    timeout: 60000, // 60 seconds timeout
-    encoding: null, // treat all responses as a buffer
-    retryDelay: 1000 // retry 1s after on failure
+const requestFile = function(uri) {
+  const options = {
+    uri,
+    // 60 seconds timeout
+    timeout: 60000,
+    // treat all responses as a buffer
+    encoding: null,
+    // retry 1s after on failure
+    retryDelay: 1000
   };
+
   return new Promise(function(resolve, reject) {
     request(options, function(err, response, body) {
       if (err) {
@@ -30,36 +35,45 @@ var requestFile = function(uri) {
   });
 };
 
-var toArrayBuffer = function(buffer) {
-    var ab = new ArrayBuffer(buffer.length);
-    var view = new Uint8Array(ab);
-    for (var i = 0; i < buffer.length; ++i) {
-        view[i] = buffer[i];
-    }
-    return ab;
+const toArrayBuffer = function(buffer) {
+  const ab = new ArrayBuffer(buffer.length);
+  const view = new Uint8Array(ab);
+
+  for (let i = 0; i < buffer.length; ++i) {
+    view[i] = buffer[i];
+  }
+  return ab;
 };
 
-var decryptFile = function(content, encryption) {
+const decryptFile = function(content, encryption) {
   return new Promise(function(resolve, reject) {
-    var d = new aesDecrypter(toArrayBuffer(content), encryption.bytes, encryption.iv, function(err, bytes) {
+    /* eslint-disable no-new */
+    // this is how you use it, its kind of bad but :shrug:
+    new AesDecrypter(toArrayBuffer(content), encryption.bytes, encryption.iv, function(err, bytes) {
+      if (err) {
+        return reject(err);
+      }
       return resolve(new Buffer(bytes));
-    })
+    });
+    /* eslint-enable no-new */
   });
 };
 
-var WriteData = function(decrypt, concurrency, resources) {
-  var inProgress = [];
-  var operations = [];
+const WriteData = function(decrypt, concurrency, resources) {
+  const inProgress = [];
+  const operations = [];
 
   resources.forEach(function(r) {
     if (r.content) {
-      operations.push(function() { return writeFile(r.file, r.content); });
+      operations.push(function() {
+        return writeFile(r.file, r.content);
+      });
     } else if (r.key && decrypt) {
       operations.push(function() {
         return requestFile(r.uri).then(function(content) {
           return decryptFile(content, r.key);
         }).then(function(content) {
-          return writeFile(r.file, content)
+          return writeFile(r.file, content);
         });
       });
     } else if (inProgress.indexOf(r.uri) === -1) {
@@ -74,7 +88,7 @@ var WriteData = function(decrypt, concurrency, resources) {
 
   return Promise.map(operations, function(o) {
     return Promise.join(o());
-  }, {concurrency: concurrency}).all(function(o) {
+  }, {concurrency}).all(function(o) {
     console.log('DONE!');
     return Promise.resolve();
   });
