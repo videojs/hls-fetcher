@@ -50,7 +50,7 @@ var parseManifest = function(content) {
 };
 
 var parseKey = function(requestOptions, basedir, decrypt, resources, manifest, parent) {
-  return new Promise(function(resolve) {
+  return new Promise(function(resolve, reject) {
 
     if (!manifest.parsed.segments[0] || !manifest.parsed.segments[0].key) {
       resolve({});
