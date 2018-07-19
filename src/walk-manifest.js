@@ -1,40 +1,45 @@
-var m3u8 = require('m3u8-parser');
-var request = require('requestretry');
-var url = require('url');
-var path = require('path');
-var fs = require('fs');
+/* eslint-disable no-console */
+const m3u8 = require('m3u8-parser');
+const request = require('requestretry');
+const url = require('url');
+const path = require('path');
 
 // replace invalid http/fs characters with valid representations
-var fsSanitize = function(filepath) {
+const fsSanitize = function(filepath) {
   return filepath
     .replace(/\?/g, '-questionmark-');
 };
 
-var joinURI = function(absolute, relative) {
-  var parse = url.parse(absolute);
+const joinURI = function(absolute, relative) {
+  const parse = url.parse(absolute);
+
   parse.pathname = path.join(parse.pathname, relative);
   return url.format(parse);
 };
 
-var isAbsolute = function(uri) {
-  var parsed = url.parse(uri);
+const isAbsolute = function(uri) {
+  const parsed = url.parse(uri);
+
   if (parsed.protocol) {
     return true;
   }
   return false;
 };
 
-var mediaGroupPlaylists = function(mediaGroups) {
-  var playlists = [];
+const mediaGroupPlaylists = function(mediaGroups) {
+  const playlists = [];
+
   ['AUDIO', 'VIDEO', 'CLOSED-CAPTIONS', 'SUBTITLES'].forEach(function(type) {
-    var mediaGroupType = mediaGroups[type];
+    const mediaGroupType = mediaGroups[type];
+
     if (mediaGroupType && !Object.keys(mediaGroupType).length) {
       return;
     }
 
-    for (var group in mediaGroupType) {
-      for (var item in mediaGroupType[group]) {
-        var props = mediaGroupType[group][item];
+    for (const group in mediaGroupType) {
+      for (const item in mediaGroupType[group]) {
+        const props = mediaGroupType[group][item];
+
         playlists.push(props);
       }
     }
@@ -42,22 +47,24 @@ var mediaGroupPlaylists = function(mediaGroups) {
   return playlists;
 };
 
-var parseManifest = function(content) {
-  var parser = new m3u8.Parser();
+const parseManifest = function(content) {
+  const parser = new m3u8.Parser();
+
   parser.push(content);
   parser.end();
   return parser.manifest;
 };
 
-var parseKey = function(requestOptions, basedir, decrypt, resources, manifest, parent) {
-  return new Promise(function(resolve) {
+const parseKey = function(requestOptions, basedir, decrypt, resources, manifest, parent) {
+  return new Promise(function(resolve, reject) {
 
     if (!manifest.parsed.segments[0] || !manifest.parsed.segments[0].key) {
       resolve({});
     }
-    var key = manifest.parsed.segments[0].key;
+    const key = manifest.parsed.segments[0].key;
 
-    var keyUri = key.uri;
+    let keyUri = key.uri;
+
     if (!isAbsolute(keyUri)) {
       keyUri = joinURI(path.dirname(manifest.uri), keyUri);
     }
@@ -88,11 +95,12 @@ var parseKey = function(requestOptions, basedir, decrypt, resources, manifest, p
       .then(function(response) {
         if (response.statusCode !== 200) {
           const keyError = new Error(response.statusCode + '|' + keyUri);
+
           console.error(keyError);
-          reject(keyError);
+          return reject(keyError);
         }
 
-        keyContent = response.body;
+        const keyContent = response.body;
 
         key.bytes = new Uint32Array([
           keyContent.readUInt32BE(0),
@@ -112,27 +120,28 @@ var parseKey = function(requestOptions, basedir, decrypt, resources, manifest, p
       .catch(function(err) {
         // TODO: do we even care about key errors; currently we just keep going and ignore them.
         const keyError = new Error(err.message + '|' + keyUri);
+
         console.error(keyError, err);
         reject(keyError);
-      })
+      });
   });
 };
 
-var walkPlaylist = function(options) {
+const walkPlaylist = function(options) {
   return new Promise(function(resolve, reject) {
 
-    var {
+    const {
       decrypt,
       basedir,
       uri,
       parent = false,
       manifestIndex = 0,
-      onError = function(err, uri, resources, resolve, reject) {
+      onError = function(err, errUri, resources, res, rej) {
         // Avoid adding the top level uri to nested errors
         if (err.message.includes('|')) {
-          reject(err);
+          rej(err);
         } else {
-          reject(new Error(err.message + '|' + uri));
+          rej(new Error(err.message + '|' + errUri));
         }
       },
       visitedUrls = [],
@@ -141,8 +150,9 @@ var walkPlaylist = function(options) {
       requestRetryDelay = 5000
     } = options;
 
-    var resources = [];
-    var manifest = {};
+    let resources = [];
+    const manifest = {};
+
     manifest.uri = uri;
     manifest.file = path.join(basedir, fsSanitize(path.basename(uri)));
 
@@ -174,7 +184,8 @@ var walkPlaylist = function(options) {
     })
       .then(function(response) {
         if (response.statusCode !== 200) {
-          var manifestError = new Error(response.statusCode + '|' + manifest.uri);
+          const manifestError = new Error(response.statusCode + '|' + manifest.uri);
+
           manifestError.reponse = response;
           return onError(manifestError, manifest.uri, resources, resolve, reject);
         }
@@ -189,7 +200,8 @@ var walkPlaylist = function(options) {
         manifest.parsed.playlists = manifest.parsed.playlists || [];
         manifest.parsed.mediaGroups = manifest.parsed.mediaGroups || {};
 
-        var playlists = manifest.parsed.playlists.concat(mediaGroupPlaylists(manifest.parsed.mediaGroups));
+        const playlists = manifest.parsed.playlists.concat(mediaGroupPlaylists(manifest.parsed.mediaGroups));
+
         parseKey({
           time: requestTimeout,
           maxAttempts: requestRetryMaxAttempts,
@@ -237,10 +249,11 @@ var walkPlaylist = function(options) {
 
           Promise.all(subs).then(function(r) {
             const flatten = [].concat.apply([], r);
+
             resources = resources.concat(flatten);
             resolve(resources);
           }).catch(function(err) {
-            onError(err, manifest.uri, resources, resolve, reject)
+            onError(err, manifest.uri, resources, resolve, reject);
           });
         });
       })

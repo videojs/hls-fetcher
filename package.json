@@ -4,6 +4,8 @@
   "description": "Fetch HLS segments from an m3u8 playlist",
   "main": "src/index.js",
   "scripts": {
+    "lint": "vjsstandard",
+    "pretest": "npm run lint",
     "test": "NODE_ENV=test mocha --opts test/opts/unit.opts test/unit"
   },
   "bin": {
@@ -33,6 +35,7 @@
   },
   "devDependencies": {
     "mocha": "^5.2.0",
-    "nock": "^9.3.3"
+    "nock": "^9.3.3",
+    "videojs-standard": "^6.0.2"
   }
 }
