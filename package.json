@@ -1,6 +1,6 @@
 {
   "name": "hls-fetcher",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Fetch HLS segments from an m3u8 playlist",
   "main": "src/index.js",
   "scripts": {
