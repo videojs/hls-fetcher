@@ -1,3 +1,4 @@
+
 # HLS-FETCHER
 
 [![Build Status](https://travis-ci.org/videojs/hls-fetcher.svg?branch=master)](https://travis-ci.org/videojs/hls-fetcher)
@@ -13,6 +14,15 @@ Lead Maintainer: Brandon Casey [@brandonocasey](https://github.com/brandonocasey
 Maintenance Status: Stable
 
 A simple CLI tool to fetch an entire hls manifest and it's segments and save it all locally.
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [Installation](#installation)
+  - [Command Line Usage](#command-line-usage)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Installation
 

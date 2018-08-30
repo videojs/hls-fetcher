@@ -1,4 +1,33 @@
-node_modules
-output/*
-!output/test.js
-npm-debug.log
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+._*
+
+# Editors
+*~
+*.swp
+*.tmproj
+*.tmproject
+*.sublime-*
+.idea/
+.project/
+.settings/
+.vscode/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependency directories
+bower_components/
+node_modules/
+
+# Build-related directories
+dist/
+docs/api/
+test/dist/
+.eslintcache
+.yo-rc.json
