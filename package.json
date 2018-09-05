@@ -11,8 +11,7 @@
     "update-changelog": "conventional-changelog -p videojs -i CHANGELOG.md -s",
     "preversion": "npm test",
     "version": "is-prerelease || npm run update-changelog && git add CHANGELOG.md",
-    "prepublish": "not-in-install && pkg-ok || in-install",
-    "postinstall": "shx test -d .git && npm-merge-driver install || in-install"
+    "prepublish": "not-in-install && pkg-ok || in-install"
   },
   "bin": {
     "hls-fetcher": "./src/cli.js"
@@ -49,12 +48,12 @@
     "mocha": "^5.2.0",
     "nock": "^9.3.3",
     "not-prerelease": "^1.0.1",
-    "npm-merge-driver": "^2.3.5",
     "pkg-ok": "^2.2.0",
-    "videojs-standard": "^7.0.1"
+    "videojs-standard": "^7.0.1",
+    "npm-merge-driver-install": "^1.0.0"
   },
   "generator-videojs-plugin": {
-    "version": "7.2.1"
+    "version": "7.2.4"
   },
   "browserslist": [
     "defaults",
