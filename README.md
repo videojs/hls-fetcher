@@ -9,8 +9,6 @@
 
 A plugin that displays user-friendly messages when Video.js encounters an error.
 
-Lead Maintainer: Brandon Casey [@brandonocasey](https://github.com/brandonocasey)
-
 Maintenance Status: Stable
 
 A simple CLI tool to fetch an entire hls manifest and it's segments and save it all locally.
