@@ -13,7 +13,7 @@ const fsSanitize = function(filepath) {
 const joinURI = function(absolute, relative) {
   const parse = url.parse(absolute);
 
-  parse.pathname = path.join(parse.pathname, relative);
+  parse.pathname = path.resolve(parse.pathname, relative);
   return url.format(parse);
 };
 
