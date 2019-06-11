@@ -78,7 +78,7 @@ const parseKey = function(requestOptions, basedir, decrypt, resources, manifest,
       }
       key.file = path.join(key.file, fsSanitize(path.basename(key.uri)));
 
-      manifest.content = new Buffer(manifest.content.toString().replace(
+      manifest.content = Buffer.from(manifest.content.toString().replace(
         key.uri,
         path.relative(path.dirname(manifest.file), key.file)
       ));
@@ -110,7 +110,7 @@ const parseKey = function(requestOptions, basedir, decrypt, resources, manifest,
         ]);
 
         // remove the key from the manifest
-        manifest.content = new Buffer(manifest.content.toString().replace(
+        manifest.content = Buffer.from(manifest.content.toString().replace(
           new RegExp('.*' + key.uri + '.*'),
           ''
         ));
@@ -168,7 +168,7 @@ const walkPlaylist = function(options) {
         manifest.uri = joinURI(path.dirname(parent.uri), manifest.uri);
       }
       // replace original uri in file with new file path
-      parent.content = new Buffer(parent.content.toString().replace(uri, path.relative(path.dirname(parent.file), manifest.file)));
+      parent.content = Buffer.from(parent.content.toString().replace(uri, path.relative(path.dirname(parent.file), manifest.file)));
     }
 
     if (visitedUrls.includes(manifest.uri)) {
@@ -221,7 +221,7 @@ const walkPlaylist = function(options) {
               s.key = key;
               s.key.iv = s.key.iv || new Uint32Array([0, 0, 0, manifest.parsed.mediaSequence, i]);
             }
-            manifest.content = new Buffer(manifest.content.toString().replace(
+            manifest.content = Buffer.from(manifest.content.toString().replace(
               s.uri,
               path.relative(path.dirname(manifest.file), s.file)
             ));
