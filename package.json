@@ -11,7 +11,7 @@
     "update-changelog": "conventional-changelog -p videojs -i CHANGELOG.md -s",
     "preversion": "npm test",
     "version": "is-prerelease || npm run update-changelog && git add CHANGELOG.md",
-    "prepublishOnly": "npm run build && vjsverify --skip-es-check"
+    "prepublishOnly": "vjsverify --skip-es-check"
   },
   "bin": {
     "hls-fetcher": "./src/cli.js"
