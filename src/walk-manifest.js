@@ -200,6 +200,15 @@ const walkPlaylist = function(options) {
         manifest.parsed.playlists = manifest.parsed.playlists || [];
         manifest.parsed.mediaGroups = manifest.parsed.mediaGroups || {};
 
+        const initSegments = [];
+
+        manifest.parsed.segments.forEach(function(s) {
+          if (s.map && s.map.uri && !initSegments.some((m) => s.map.uri === m.uri)) {
+            manifest.parsed.segments.push(s.map);
+            initSegments.push(s.map);
+          }
+        });
+
         const playlists = manifest.parsed.playlists.concat(mediaGroupPlaylists(manifest.parsed.mediaGroups));
 
         parseKey({

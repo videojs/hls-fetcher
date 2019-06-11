@@ -103,6 +103,33 @@ describe('walk-manifest', function() {
         });
     });
 
+    it('should return fmp4/ts segments and init segment for fmp4 m3u8', function(done) {
+      nock(TEST_URL)
+        .get('/test.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/fmp4.m3u8`);
+
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', requestRetryMaxAttempts: 0};
+
+      walker(options)
+        .then(function(resources) {
+          // m3u8 and 13 segments
+          const setResources = new Set(resources);
+
+          assert.equal(setResources.size, 13);
+          setResources.forEach(function(item) {
+            assert(
+              item.uri.includes('.ts') ||
+              item.uri.includes('.m3u8') ||
+              item.uri.includes('.mp4') ||
+              item.uri.includes('.m4s')
+            );
+
+          });
+
+          done();
+        });
+    });
+
     it('should follow http redirects for simple m3u8', function(done) {
       nock(TEST_URL)
         .get('/test.m3u8')
