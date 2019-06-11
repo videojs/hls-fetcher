@@ -1,0 +1,15 @@
+#EXTM3U
+#EXT-X-PLAYLIST-TYPE:VOD
+#EXT-X-TARGETDURATION:8
+#EXT-X-VERSION:6
+#EXT-X-INDEPENDENT-SEGMENTS
+#EXT-X-MEDIA-SEQUENCE:0
+chunk_0.ts
+#EXTINF:2.000,
+/test/chunk_1.ts
+#EXTINF:1.999,
+test/chunk_2.ts
+#EXTINF:2.000,
+http://manifest-list-test.com/test/chunk_3.ts
+#EXTINF:2.000,
+

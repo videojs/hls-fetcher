@@ -85,6 +85,24 @@ describe('walk-manifest', function() {
         });
     });
 
+    it('should return correct paths for m3u8', function(done) {
+      nock(TEST_URL)
+        .get('/test/test.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/path-testing.m3u8`);
+
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test/test.m3u8', requestRetryMaxAttempts: 0};
+
+      walker(options)
+        .then(function(resources) {
+          assert.equal(resources[0].uri, `${TEST_URL}/test/test.m3u8`);
+          assert.equal(resources[1].uri, `${TEST_URL}/test/chunk_0.ts`);
+          assert.equal(resources[2].uri, `${TEST_URL}/test/chunk_1.ts`);
+          assert.equal(resources[3].uri, `${TEST_URL}/test/test/chunk_2.ts`);
+          assert.equal(resources[4].uri, `${TEST_URL}/test/chunk_3.ts`);
+          done();
+        });
+    });
+
     it('should follow http redirects for simple m3u8', function(done) {
       nock(TEST_URL)
         .get('/test.m3u8')
