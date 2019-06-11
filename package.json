@@ -32,7 +32,7 @@
   "dependencies": {
     "aes-decrypter": "^3.0.0",
     "bluebird": "^3.4.0",
-    "m3u8-parser": "^4.2.0",
+    "m3u8-parser": "^4.3.0",
     "mkdirp": "^0.5.1",
     "pessimist": "^0.3.5",
     "request": "^2.87.0",
