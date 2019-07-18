@@ -68,7 +68,7 @@ const WriteData = function(decrypt, concurrency, resources) {
       operations.push(function() {
         return writeFile(r.file, r.content);
       });
-    } else if (r.key && decrypt) {
+    } else if (r.uri && r.key && decrypt) {
       operations.push(function() {
         return requestFile(r.uri).then(function(content) {
           return decryptFile(content, r.key);
@@ -76,7 +76,7 @@ const WriteData = function(decrypt, concurrency, resources) {
           return writeFile(r.file, content);
         });
       });
-    } else if (inProgress.indexOf(r.uri) === -1) {
+    } else if (r.uri && inProgress.indexOf(r.uri) === -1) {
       operations.push(function() {
         return requestFile(r.uri).then(function(content) {
           return writeFile(r.file, content);

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" profiles="urn:mpeg:dash:profile:isoff-live:2011" type="static" mediaPresentationDuration="PT29.611S" minBufferTime="PT7S">
+  <Period>
+    <AdaptationSet id="1" group="5" profiles="ccff" bitstreamSwitching="false" segmentAlignment="true" contentType="audio" mimeType="audio/mp4" codecs="mp4a.40.2" lang="und">
+      <Label>aac_und_2_128_1_1</Label>
+      <SegmentTemplate timescale="10000000" media="QualityLevels($Bandwidth$)/Fragments(aac_und_2_128_1_1=$Time$,format=mpd-time-csf).m4a" initialization="QualityLevels($Bandwidth$)/Fragments(aac_und_2_128_1_1=i,format=mpd-time-csf).mp4">
+        <SegmentTimeline>
+          <S d="60160000" r="3"/>
+          <S d="55466666"/>
+        </SegmentTimeline>
+      </SegmentTemplate>
+      <Representation id="5_A_aac_und_2_128_1_1_1" bandwidth="128000" audioSamplingRate="48000"/>
+    </AdaptationSet>
+    <AdaptationSet id="2" group="1" profiles="ccff" bitstreamSwitching="false" segmentAlignment="true" contentType="video" mimeType="video/mp4" codecs="avc1.64001F" maxWidth="1280" maxHeight="720" startWithSAP="1">
+      <SegmentTemplate timescale="10000000" media="QualityLevels($Bandwidth$)/Fragments(video=$Time$,format=mpd-time-csf).m4v" initialization="QualityLevels($Bandwidth$)/Fragments(video=i,format=mpd-time-csf).mp4">
+        <SegmentTimeline>
+          <S d="60000000" r="3"/>
+          <S d="55600000"/>
+        </SegmentTimeline>
+      </SegmentTemplate>
+      <Representation id="1_V_video_1" bandwidth="1102000" width="1280" height="720"/>
+      <Representation id="1_V_video_2" bandwidth="686000" width="960" height="540"/>
+      <Representation id="1_V_video_3" bandwidth="360000" codecs="avc1.64001E" width="640" height="360"/>
+      <Representation id="1_V_video_4" bandwidth="233000" codecs="avc1.640015" width="480" height="270"/>
+      <Representation id="1_V_video_5" bandwidth="117000" codecs="avc1.64000C" width="320" height="180"/>
+    </AdaptationSet>
+  </Period>
+</MPD>

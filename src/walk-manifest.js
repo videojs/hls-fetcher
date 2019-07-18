@@ -1,10 +1,12 @@
 /* eslint-disable no-console */
 const m3u8 = require('m3u8-parser');
+const mpd = require('mpd-parser');
 const request = require('requestretry');
 const url = require('url');
 const path = require('path');
 const querystring = require('querystring');
 const filenamify = require('filenamify');
+const DOMParser = require('xmldom').DOMParser;
 
 // replace invalid http/fs characters with valid representations
 const fsSanitize = function(filepath) {
@@ -55,12 +57,24 @@ const mediaGroupPlaylists = function(mediaGroups) {
   return playlists;
 };
 
-const parseManifest = function(content) {
+const parseM3u8Manifest = function(content) {
   const parser = new m3u8.Parser();
 
   parser.push(content);
   parser.end();
   return parser.manifest;
+};
+
+const parseMpdManifest = function(content, srcUrl) {
+  global.DOMParser = DOMParser;
+
+  const result = mpd.parse(content, {
+    manifestUri: srcUrl
+  });
+
+  global.DOMParser = null;
+
+  return result;
 };
 
 const parseKey = function(requestOptions, basedir, decrypt, resources, manifest, parent) {
@@ -135,6 +149,13 @@ const parseKey = function(requestOptions, basedir, decrypt, resources, manifest,
   });
 };
 
+const getMaster = function(parent) {
+  if (parent.parent) {
+    return getMaster(parent.parent);
+  }
+  return parent;
+};
+
 const walkPlaylist = function(options) {
   return new Promise(function(resolve, reject) {
 
@@ -155,125 +176,160 @@ const walkPlaylist = function(options) {
       visitedUrls = [],
       requestTimeout = 1500,
       requestRetryMaxAttempts = 5,
+      dashPlaylist = null,
       requestRetryDelay = 5000
     } = options;
 
     let resources = [];
-    const manifest = {};
+    const manifest = {parent};
 
     manifest.uri = uri;
     manifest.file = path.join(basedir, fsSanitize(path.basename(uri)));
 
     // if we are not the master playlist
     if (parent) {
-      manifest.file = path.join(
-        path.dirname(parent.file),
-        'manifest' + manifestIndex,
-        fsSanitize(path.basename(manifest.file))
-      );
-      // get the real uri of this playlist
-      if (!isAbsolute(manifest.uri)) {
-        manifest.uri = joinURI(path.dirname(parent.uri), manifest.uri);
+      if (!dashPlaylist) {
+        manifest.file = path.join(
+          path.dirname(parent.file),
+          'manifest' + manifestIndex,
+          fsSanitize(path.basename(manifest.file))
+        );
+        // get the real uri of this playlist
+        if (!isAbsolute(manifest.uri)) {
+          manifest.uri = joinURI(path.dirname(parent.uri), manifest.uri);
+        }
+        // replace original uri in file with new file path
+        parent.content = Buffer.from(parent.content.toString().replace(uri, path.relative(path.dirname(parent.file), manifest.file)));
+      } else if (dashPlaylist.segments && dashPlaylist.segments.length) {
+        manifest.file = path.join(path.dirname(getMaster(parent).file), fsSanitize(path.dirname(dashPlaylist.segments[0].uri)));
       }
-      // replace original uri in file with new file path
-      parent.content = Buffer.from(parent.content.toString().replace(uri, path.relative(path.dirname(parent.file), manifest.file)));
     }
 
-    if (visitedUrls.includes(manifest.uri)) {
+    if (!dashPlaylist && visitedUrls.includes(manifest.uri)) {
       console.error(`[WARN] Trying to visit the same uri again; skipping to avoid getting stuck in a cycle: ${manifest.uri}`);
       return resolve(resources);
     }
 
-    request({
-      url: manifest.uri,
-      timeout: requestTimeout,
-      maxAttempts: requestRetryMaxAttempts,
-      retryDelay: requestRetryDelay
-    })
-      .then(function(response) {
-        if (response.statusCode !== 200) {
-          const manifestError = new Error(response.statusCode + '|' + manifest.uri);
+    let requestPromise;
 
-          manifestError.reponse = response;
-          return onError(manifestError, manifest.uri, resources, resolve, reject);
-        }
-        // Only push manifest uris that get a non 200 and don't timeout
-        resources.push(manifest);
-        visitedUrls.push(manifest.uri);
+    if (dashPlaylist) {
+      requestPromise = Promise.resolve({statusCode: 200});
+    } else {
+      requestPromise = request({
+        url: manifest.uri,
+        timeout: requestTimeout,
+        maxAttempts: requestRetryMaxAttempts,
+        retryDelay: requestRetryDelay
+      });
+    }
 
+    requestPromise.then(function(response) {
+      if (response.statusCode !== 200) {
+        const manifestError = new Error(response.statusCode + '|' + manifest.uri);
+
+        manifestError.reponse = response;
+        return onError(manifestError, manifest.uri, resources, resolve, reject);
+      }
+      // Only push manifest uris that get a non 200 and don't timeout
+      resources.push(manifest);
+      visitedUrls.push(manifest.uri);
+
+      let dash;
+
+      if (!dashPlaylist) {
         manifest.content = response.body;
+        if ((/^application\/dash\+xml/i).test(response.headers['content-type']) || (/^\<\?xml/i).test(response.body)) {
+          dash = true;
+          manifest.parsed = parseMpdManifest(manifest.content, manifest.uri);
+        } else {
+          manifest.parsed = parseM3u8Manifest(manifest.content);
+        }
+      } else {
+        dash = true;
+        manifest.parsed = dashPlaylist;
+      }
 
-        manifest.parsed = parseManifest(manifest.content);
-        manifest.parsed.segments = manifest.parsed.segments || [];
-        manifest.parsed.playlists = manifest.parsed.playlists || [];
-        manifest.parsed.mediaGroups = manifest.parsed.mediaGroups || {};
+      manifest.parsed.segments = manifest.parsed.segments || [];
+      manifest.parsed.playlists = manifest.parsed.playlists || [];
+      manifest.parsed.mediaGroups = manifest.parsed.mediaGroups || {};
 
-        const initSegments = [];
+      const initSegments = [];
 
-        manifest.parsed.segments.forEach(function(s) {
-          if (s.map && s.map.uri && !initSegments.some((m) => s.map.uri === m.uri)) {
-            manifest.parsed.segments.push(s.map);
-            initSegments.push(s.map);
+      manifest.parsed.segments.forEach(function(s) {
+        if (s.map && s.map.uri && !initSegments.some((m) => s.map.uri === m.uri)) {
+          manifest.parsed.segments.push(s.map);
+          initSegments.push(s.map);
+        }
+      });
+
+      const playlists = manifest.parsed.playlists.concat(mediaGroupPlaylists(manifest.parsed.mediaGroups));
+
+      parseKey({
+        time: requestTimeout,
+        maxAttempts: requestRetryMaxAttempts,
+        retryDelay: requestRetryDelay
+      }, basedir, decrypt, resources, manifest, parent).then(function(key) {
+        // SEGMENTS
+        manifest.parsed.segments.forEach(function(s, i) {
+          if (!s.uri) {
+            return;
           }
-        });
-
-        const playlists = manifest.parsed.playlists.concat(mediaGroupPlaylists(manifest.parsed.mediaGroups));
-
-        parseKey({
-          time: requestTimeout,
-          maxAttempts: requestRetryMaxAttempts,
-          retryDelay: requestRetryDelay
-        }, basedir, decrypt, resources, manifest, parent).then(function(key) {
-          // SEGMENTS
-          manifest.parsed.segments.forEach(function(s, i) {
-            if (!s.uri) {
-              return;
-            }
-            // put segments in manifest-name/segment-name.ts
+          // put segments in manifest-name/segment-name.ts
+          if (dashPlaylist) {
+            s.file = path.join(manifest.file, fsSanitize(path.basename(s.uri)));
+          } else {
             s.file = path.join(path.dirname(manifest.file), fsSanitize(path.basename(s.uri)));
-            if (!isAbsolute(s.uri)) {
+          }
+          if (!isAbsolute(s.uri)) {
+            if (dashPlaylist) {
+              s.uri = joinURI(path.dirname(getMaster(parent).uri), s.uri);
+            } else {
               s.uri = joinURI(path.dirname(manifest.uri), s.uri);
             }
-            if (key) {
-              s.key = key;
-              s.key.iv = s.key.iv || new Uint32Array([0, 0, 0, manifest.parsed.mediaSequence, i]);
-            }
+          }
+          if (key) {
+            s.key = key;
+            s.key.iv = s.key.iv || new Uint32Array([0, 0, 0, manifest.parsed.mediaSequence, i]);
+          }
+          if (manifest.content) {
             manifest.content = Buffer.from(manifest.content.toString().replace(
               s.uri,
               path.relative(path.dirname(manifest.file), s.file)
             ));
-            resources.push(s);
-          });
+          }
+          resources.push(s);
+        });
 
-          // SUB Playlists
-          const subs = playlists.map(function(p, z) {
-            if (!p.uri) {
-              return Promise().resolve(resources);
-            }
-            return walkPlaylist({
-              decrypt,
-              basedir,
-              uri: p.uri,
-              parent: manifest,
-              manifestIndex: z,
-              onError,
-              visitedUrls,
-              requestTimeout,
-              requestRetryMaxAttempts,
-              requestRetryDelay
-            });
-          });
-
-          Promise.all(subs).then(function(r) {
-            const flatten = [].concat.apply([], r);
-
-            resources = resources.concat(flatten);
-            resolve(resources);
-          }).catch(function(err) {
-            onError(err, manifest.uri, resources, resolve, reject);
+        // SUB Playlists
+        const subs = playlists.map(function(p, z) {
+          if (!p.uri && !dash) {
+            return Promise.resolve(resources);
+          }
+          return walkPlaylist({
+            dashPlaylist: dash ? p : null,
+            decrypt,
+            basedir,
+            uri: p.uri,
+            parent: manifest,
+            manifestIndex: z,
+            onError,
+            visitedUrls,
+            requestTimeout,
+            requestRetryMaxAttempts,
+            requestRetryDelay
           });
         });
-      })
+
+        Promise.all(subs).then(function(r) {
+          const flatten = [].concat.apply([], r);
+
+          resources = resources.concat(flatten);
+          resolve(resources);
+        }).catch(function(err) {
+          onError(err, manifest.uri, resources, resolve, reject);
+        });
+      });
+    })
       .catch(function(err) {
         onError(err, manifest.uri, resources, resolve, reject);
       });
