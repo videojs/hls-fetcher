@@ -642,11 +642,8 @@ describe('walk-manifest', function() {
           const setResources = new Set(resources);
           const count = {mp4: 0, m4v: 0, m4a: 0, mpd: 0};
 
-          assert.equal(setResources.size, 44);
+          assert.equal(setResources.size, 37);
           setResources.forEach(function(item) {
-            if (!item.uri) {
-              return;
-            }
             if (item.uri.includes('.mp4')) {
               count.mp4 += 1;
             } else if (item.uri.includes('.m4v')) {

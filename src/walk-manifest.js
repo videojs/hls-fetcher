@@ -231,12 +231,12 @@ const walkPlaylist = function(options) {
         return onError(manifestError, manifest.uri, resources, resolve, reject);
       }
       // Only push manifest uris that get a non 200 and don't timeout
-      resources.push(manifest);
-      visitedUrls.push(manifest.uri);
-
       let dash;
 
       if (!dashPlaylist) {
+        resources.push(manifest);
+        visitedUrls.push(manifest.uri);
+
         manifest.content = response.body;
         if ((/^application\/dash\+xml/i).test(response.headers['content-type']) || (/^\<\?xml/i).test(response.body)) {
           dash = true;
