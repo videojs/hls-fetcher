@@ -8,11 +8,13 @@ const filenamify = require('filenamify');
 
 // replace invalid http/fs characters with valid representations
 const fsSanitize = function(filepath) {
-  // split on \, \\, or /
   return path.normalize(filepath)
+    // split on \, \\, or /
+    .split(/\\\\|\\|\//)
     // max filepath is 255 on OSX/linux, and 260 on windows, 255 is fine for both
-    .split(/\\\\|\\|\//).map((p) => filenamify(querystring.unescape(p), {replacement: '!', maxLength: 255}))
-    // join on OS specific
+    // replace invalid characters with !
+    .map((p) => filenamify(querystring.unescape(p), {replacement: '!', maxLength: 255}))
+    // join on OS specific path seperator
     .join(path.sep);
 };
 
