@@ -103,6 +103,38 @@ describe('walk-manifest', function() {
         });
     });
 
+    it('should shorten paths that will be too long', function() {
+      // string used in long-path.m3u8
+      const longPathRandom = 'OYK%40%3F%2BrjKeGaskhhsmf8E7aoUftbIfXZo0ucm9qebBFsXG5yepliwyfwKIf4zTGqMocHsTJePF91V17ZJ4h8A7mS3ysNSOcjKQT2oAVJmfD3vJIwdDfD0mZqlA9jQOOWwXnLy0UQtn9V2eYXlNAdIc9w8yDFPxDp509vJC9lurHWewql6eg22drnACC2rEDOXYit0I3CqOaVRvLSIqG0quUda5CoDn7vmaCBlvsBA0MEoWQSG0TEmDtdTT6DP8vUCC7BTtr9Zaxo5l9QYnWyNMzZNszjijCoKq8LsAi95WIo2n9';
+      const chunkPath = `chunk_@.ts?token=${longPathRandom}`
+        .replace('?token=OYK%40%3F%2B', 'token=OYK@+')
+        .substring(0, 255);
+      const manifestUri = `test.m3u8?token=${longPathRandom}`;
+      const manifestPath = manifestUri
+        .replace('?token=OYK%40%3F%2B', 'token=OYK@+')
+        .substring(0, 255);
+
+      nock(TEST_URL)
+        .get(`/test/${manifestUri}`)
+        .replyWithFile(200, `${process.cwd()}/test/resources/long-path.m3u8`);
+
+      const options = {
+        decrypt: false,
+        basedir: '.',
+        uri: `${TEST_URL}/test/${manifestUri}`,
+        requestRetryMaxAttempts: 0
+      };
+
+      return walker(options)
+        .then(function(resources) {
+          assert.equal(resources[0].file, manifestPath, 'manifest');
+          assert.equal(resources[1].file, chunkPath.replace('@', '0'), 'chunk 0');
+          assert.equal(resources[2].file, chunkPath.replace('@', '1'), 'chunk 1');
+          assert.equal(resources[3].file, chunkPath.replace('@', '2'), 'chunk 2');
+          assert.equal(resources[4].file, chunkPath.replace('@', '3'), 'chunk 3');
+        });
+    });
+
     it('should return fmp4/ts segments and init segment for fmp4 m3u8', function(done) {
       nock(TEST_URL)
         .get('/test.m3u8')

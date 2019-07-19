@@ -32,6 +32,7 @@
   "dependencies": {
     "aes-decrypter": "^3.0.0",
     "bluebird": "^3.4.0",
+    "filenamify": "^4.1.0",
     "m3u8-parser": "^4.3.0",
     "mkdirp": "^0.5.1",
     "pessimist": "^0.3.5",
@@ -47,9 +48,9 @@
     "mocha": "^5.2.0",
     "nock": "^9.3.3",
     "not-prerelease": "^1.0.1",
-    "videojs-standard": "^7.0.1",
     "npm-merge-driver-install": "^1.0.0",
-    "videojs-generator-verify": "~1.0.4"
+    "videojs-generator-verify": "~1.0.4",
+    "videojs-standard": "^7.0.1"
   },
   "generator-videojs-plugin": {
     "version": "7.3.2"
