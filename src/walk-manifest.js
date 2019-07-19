@@ -3,11 +3,17 @@ const m3u8 = require('m3u8-parser');
 const request = require('requestretry');
 const url = require('url');
 const path = require('path');
+const querystring = require('querystring');
+const filenamify = require('filenamify');
 
 // replace invalid http/fs characters with valid representations
 const fsSanitize = function(filepath) {
-  return filepath
-    .replace(/\?/g, '-questionmark-');
+  // split on \, \\, or /
+  return path.normalize(filepath)
+    // max filepath is 255 on OSX/linux, and 260 on windows, 255 is fine for both
+    .split(/\\\\|\\|\//).map((p) => filenamify(querystring.unescape(p), {replacement: '!', maxLength: 255}))
+    // join on OS specific
+    .join(path.sep);
 };
 
 const joinURI = function(absolute, relative) {
