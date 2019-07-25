@@ -6,7 +6,6 @@ const url = require('url');
 const path = require('path');
 const querystring = require('querystring');
 const filenamify = require('filenamify');
-const DOMParser = require('xmldom').DOMParser;
 
 // replace invalid http/fs characters with valid representations
 const fsSanitize = function(filepath) {
@@ -65,23 +64,44 @@ const parseM3u8Manifest = function(content) {
   return parser.manifest;
 };
 
-const parseMpdManifest = function(content, srcUrl) {
-  global.DOMParser = DOMParser;
+const collectPlaylists = function(parsed) {
+  return []
+    .concat(parsed.playlists || [])
+    .concat(mediaGroupPlaylists(parsed.mediaGroups || {}) || [])
+    .reduce(function(acc, p) {
+      acc.push(p);
 
-  const result = mpd.parse(content, {
+      if (p.playlists) {
+        acc = acc.concat(collectPlaylists(p));
+      }
+      return acc;
+    }, []);
+};
+
+const parseMpdManifest = function(content, srcUrl) {
+  const playlists = mpd.toPlaylists(mpd.inheritAttributes(mpd.stringToMpdXml(content), {
     manifestUri: srcUrl
+  }));
+
+  const m3u8Result = mpd.toM3u8(playlists);
+  const m3u8Playlists = collectPlaylists(m3u8Result);
+
+  playlists.forEach(function(p) {
+    m3u8Playlists.forEach(function(m) {
+      if (m.attributes && p.attributes.id === m.attributes.NAME) {
+        m.dashattributes = p.attributes;
+      }
+    });
   });
 
-  global.DOMParser = null;
-
-  return result;
+  return m3u8Result;
 };
 
 const parseKey = function(requestOptions, basedir, decrypt, resources, manifest, parent) {
   return new Promise(function(resolve, reject) {
 
     if (!manifest.parsed.segments[0] || !manifest.parsed.segments[0].key) {
-      resolve({});
+      return resolve({});
     }
     const key = manifest.parsed.segments[0].key;
 
@@ -106,7 +126,7 @@ const parseKey = function(requestOptions, basedir, decrypt, resources, manifest,
       ));
       key.uri = keyUri;
       resources.push(key);
-      resolve(key);
+      return resolve(key);
     }
 
     requestOptions.url = keyUri;
