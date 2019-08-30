@@ -79,19 +79,30 @@ const collectPlaylists = function(parsed) {
 };
 
 const parseMpdManifest = function(content, srcUrl) {
-  const playlists = mpd.toPlaylists(mpd.inheritAttributes(mpd.stringToMpdXml(content), {
+  const mpdPlaylists = mpd.toPlaylists(mpd.inheritAttributes(mpd.stringToMpdXml(content), {
     manifestUri: srcUrl
   }));
 
-  const m3u8Result = mpd.toM3u8(playlists);
+  const m3u8Result = mpd.toM3u8(mpdPlaylists);
   const m3u8Playlists = collectPlaylists(m3u8Result);
 
-  playlists.forEach(function(p) {
-    m3u8Playlists.forEach(function(m) {
-      if (m.attributes && p.attributes.id === m.attributes.NAME) {
-        m.dashattributes = p.attributes;
-      }
+  m3u8Playlists.forEach(function(m) {
+    const mpdPlaylist = m.attributes && mpdPlaylists.find(function(p) {
+      return p.attributes.id === m.attributes.NAME;
     });
+
+    if (mpdPlaylist) {
+      m.dashattributes = mpdPlaylist.attributes;
+    }
+    // add sidx to segments
+    if (m.sidx) {
+      // fix init segment map if it has one
+      if (m.sidx.map && !m.sidx.map.uri) {
+        m.sidx.map.uri = m.sidx.map.resolvedUri;
+      }
+
+      m.segments.push(m.sidx);
+    }
   });
 
   return m3u8Result;
@@ -169,13 +180,6 @@ const parseKey = function(requestOptions, basedir, decrypt, resources, manifest,
   });
 };
 
-const getMaster = function(parent) {
-  if (parent.parent) {
-    return getMaster(parent.parent);
-  }
-  return parent;
-};
-
 const walkPlaylist = function(options) {
   return new Promise(function(resolve, reject) {
 
@@ -207,22 +211,21 @@ const walkPlaylist = function(options) {
     manifest.file = path.join(basedir, fsSanitize(path.basename(uri)));
 
     // if we are not the master playlist
-    if (parent) {
-      if (!dashPlaylist) {
-        manifest.file = path.join(
-          path.dirname(parent.file),
-          'manifest' + manifestIndex,
-          fsSanitize(path.basename(manifest.file))
-        );
-        // get the real uri of this playlist
-        if (!isAbsolute(manifest.uri)) {
-          manifest.uri = joinURI(path.dirname(parent.uri), manifest.uri);
-        }
-        // replace original uri in file with new file path
-        parent.content = Buffer.from(parent.content.toString().replace(uri, path.relative(path.dirname(parent.file), manifest.file)));
-      } else if (dashPlaylist.segments && dashPlaylist.segments.length) {
-        manifest.file = path.join(path.dirname(getMaster(parent).file), fsSanitize(path.dirname(dashPlaylist.segments[0].uri)));
+    if (dashPlaylist && parent) {
+      manifest.file = parent.file;
+      manifest.uri = parent.uri;
+    } else if (parent) {
+      manifest.file = path.join(
+        path.dirname(parent.file),
+        'manifest' + manifestIndex,
+        fsSanitize(path.basename(manifest.file))
+      );
+      // get the real uri of this playlist
+      if (!isAbsolute(manifest.uri)) {
+        manifest.uri = joinURI(path.dirname(parent.uri), manifest.uri);
       }
+      // replace original uri in file with new file path
+      parent.content = Buffer.from(parent.content.toString().replace(uri, path.relative(path.dirname(parent.file), manifest.file)));
     }
 
     if (!dashPlaylist && visitedUrls.includes(manifest.uri)) {
@@ -295,17 +298,10 @@ const walkPlaylist = function(options) {
             return;
           }
           // put segments in manifest-name/segment-name.ts
-          if (dashPlaylist) {
-            s.file = path.join(manifest.file, fsSanitize(path.basename(s.uri)));
-          } else {
-            s.file = path.join(path.dirname(manifest.file), fsSanitize(path.basename(s.uri)));
-          }
+          s.file = path.join(path.dirname(manifest.file), fsSanitize(path.basename(s.uri)));
+
           if (!isAbsolute(s.uri)) {
-            if (dashPlaylist) {
-              s.uri = joinURI(path.dirname(getMaster(parent).uri), s.uri);
-            } else {
-              s.uri = joinURI(path.dirname(manifest.uri), s.uri);
-            }
+            s.uri = joinURI(path.dirname(manifest.uri), s.uri);
           }
           if (key) {
             s.key = key;
