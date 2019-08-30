@@ -35,25 +35,19 @@ const requestFile = function(uri) {
   });
 };
 
-const toArrayBuffer = function(buffer) {
-  const ab = new ArrayBuffer(buffer.length);
-  const view = new Uint8Array(ab);
-
-  for (let i = 0; i < buffer.length; ++i) {
-    view[i] = buffer[i];
-  }
-  return ab;
+const toUint8Array = function(nodeBuffer) {
+  return new Uint8Array(nodeBuffer.buffer, nodeBuffer.byteOffset, nodeBuffer.byteLength / Uint8Array.BYTES_PER_ELEMENT);
 };
 
 const decryptFile = function(content, encryption) {
   return new Promise(function(resolve, reject) {
     /* eslint-disable no-new */
     // this is how you use it, its kind of bad but :shrug:
-    new AesDecrypter(toArrayBuffer(content), encryption.bytes, encryption.iv, function(err, bytes) {
+    new AesDecrypter(toUint8Array(content), encryption.bytes, encryption.iv, function(err, bytes) {
       if (err) {
         return reject(err);
       }
-      return resolve(new Buffer(bytes));
+      return resolve(Buffer.from(bytes));
     });
     /* eslint-enable no-new */
   });
