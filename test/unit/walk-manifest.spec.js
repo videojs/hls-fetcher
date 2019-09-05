@@ -149,12 +149,10 @@ describe('walk-manifest', function() {
 
           assert.equal(setResources.size, 13);
           setResources.forEach(function(item) {
-            assert(
-              item.uri.includes('.ts') ||
+            assert(item.uri.includes('.ts') ||
               item.uri.includes('.m3u8') ||
               item.uri.includes('.mp4') ||
-              item.uri.includes('.m4s')
-            );
+              item.uri.includes('.m4s'));
 
           });
 
@@ -628,5 +626,75 @@ describe('walk-manifest', function() {
           done();
         });
     });
+
+    it('should return segments and playlists for mpd', function() {
+      nock(TEST_URL)
+        .get('/dash.mpd')
+        .replyWithFile(200, `${process.cwd()}/test/resources/dash.mpd`);
+
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/dash.mpd', requestRetryMaxAttempts: 0};
+
+      return walker(options)
+        .then(function(resources) {
+          // m3u8 and 13 segments
+          const setResources = new Set(resources);
+          const count = {mp4: 0, m4v: 0, m4a: 0, mpd: 0};
+
+          assert.equal(setResources.size, 37);
+          setResources.forEach(function(item) {
+            if (item.uri.includes('.mp4')) {
+              count.mp4 += 1;
+            } else if (item.uri.includes('.m4v')) {
+              count.m4v += 1;
+            } else if (item.uri.includes('.m4a')) {
+              count.m4a += 1;
+            } else if (item.uri.includes('.mpd')) {
+              count.mpd += 1;
+            } else {
+              assert(false, `items uri ${item.uri} was unexpected`);
+              return;
+            }
+
+            assert(true, 'items uri was expected');
+          });
+
+          assert.equal(count.mp4, 6, 'mp4 count as expected');
+          assert.equal(count.mpd, 1, 'mpd count as expected');
+          assert.equal(count.m4v, 25, 'm4v count as expected');
+          assert.equal(count.m4a, 5, 'm4a count as expected');
+        });
+    });
+  });
+
+  it('should return segments and playlists for mpd with sidx', function() {
+    nock(TEST_URL)
+      .get('/sidx.mpd')
+      .replyWithFile(200, `${process.cwd()}/test/resources/sidx.mpd`);
+
+    const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/sidx.mpd', requestRetryMaxAttempts: 0};
+
+    return walker(options)
+      .then(function(resources) {
+        // m3u8 and 13 segments
+        const setResources = new Set(resources);
+        const count = {mp4: 0, m4v: 0, m4a: 0, mpd: 0};
+
+        assert.equal(setResources.size, 7);
+        setResources.forEach(function(item) {
+          if (item.uri.includes('.mp4')) {
+            count.mp4 += 1;
+          } else if (item.uri.includes('.mpd')) {
+            count.mpd += 1;
+          } else {
+            assert(false, `items uri ${item.uri} was unexpected`);
+            return;
+          }
+
+          assert(true, 'items uri was expected');
+        });
+
+        assert.equal(count.mp4, 6, 'mp4 count as expected');
+        assert.equal(count.mpd, 1, 'mpd count as expected');
+      });
   });
 });
