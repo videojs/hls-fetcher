@@ -24,12 +24,20 @@ const customError = function(errors) {
 
 describe('walk-manifest', function() {
   describe('walkPlaylist', function() {
+    /* eslint-disable no-console */
+    beforeEach(function() {
+      this.oldError = console.error;
+
+      console.error = () => {};
+    });
     afterEach(function() {
+      console.error = this.oldError;
       if (!nock.isDone()) {
         this.test.error(new Error('Not all nock interceptors were used!'));
         nock.cleanAll();
       }
     });
+    /* eslint-enable no-console */
 
     it('should return just top level error for bad m3u8 uri', function(done) {
       nock(TEST_URL)
@@ -81,6 +89,22 @@ describe('walk-manifest', function() {
           setResources.forEach(function(item) {
             assert(item.uri.includes('.ts') || item.uri.includes('.m3u8'));
           });
+          done();
+        });
+    });
+
+    it('should return just segments for m3u8 with windows paths', function(done) {
+      nock(TEST_URL)
+        .get('/test.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/windows.m3u8`);
+
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/test.m3u8', requestRetryMaxAttempts: 0};
+
+      walker(options)
+        .then(function(resources) {
+
+          assert.equal(resources[1].file, 'chunk_0.ts');
+          assert.equal(resources[2].file, 'chunk_1.ts');
           done();
         });
     });
