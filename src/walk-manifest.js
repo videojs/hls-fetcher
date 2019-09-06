@@ -129,7 +129,7 @@ const parseKey = function(requestOptions, basedir, decrypt, resources, manifest,
       if (parent) {
         key.file = path.dirname(parent.file);
       }
-      key.file = path.join(key.file, fsSanitize(path.basename(key.uri)));
+      key.file = path.join(key.file, path.basename(fsSanitize(key.uri)));
 
       manifest.content = Buffer.from(manifest.content.toString().replace(
         key.uri,
@@ -208,7 +208,7 @@ const walkPlaylist = function(options) {
     const manifest = {parent};
 
     manifest.uri = uri;
-    manifest.file = path.join(basedir, fsSanitize(path.basename(uri)));
+    manifest.file = path.join(basedir, path.basename(fsSanitize(uri)));
 
     // if we are not the master playlist
     if (dashPlaylist && parent) {
@@ -218,7 +218,7 @@ const walkPlaylist = function(options) {
       manifest.file = path.join(
         path.dirname(parent.file),
         'manifest' + manifestIndex,
-        fsSanitize(path.basename(manifest.file))
+        path.basename(fsSanitize(manifest.file))
       );
       // get the real uri of this playlist
       if (!isAbsolute(manifest.uri)) {
@@ -298,7 +298,7 @@ const walkPlaylist = function(options) {
             return;
           }
           // put segments in manifest-name/segment-name.ts
-          s.file = path.join(path.dirname(manifest.file), fsSanitize(path.basename(s.uri)));
+          s.file = path.join(path.dirname(manifest.file), path.basename(fsSanitize(s.uri)));
 
           if (!isAbsolute(s.uri)) {
             s.uri = joinURI(path.dirname(manifest.uri), s.uri);
