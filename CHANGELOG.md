@@ -1,3 +1,10 @@
+<a name="2.2.1"></a>
+## [2.2.1](https://github.com/videojs/hls-fetcher/compare/v2.2.0...v2.2.1) (2019-09-06)
+
+### Bug Fixes
+
+* windows paths and test console error ([#39](https://github.com/videojs/hls-fetcher/issues/39)) ([ae14253](https://github.com/videojs/hls-fetcher/commit/ae14253))
+
 <a name="2.2.0"></a>
 # [2.2.0](https://github.com/videojs/hls-fetcher/compare/v2.1.0...v2.2.0) (2019-09-05)
 
