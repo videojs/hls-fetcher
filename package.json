@@ -27,9 +27,9 @@
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/imbcmdth/hls-fetcher/issues"
+    "url": "https://github.com/videojs/hls-fetcher/issues"
   },
-  "homepage": "https://github.com/imbcmdth/hls-fetcher#readme",
+  "homepage": "https://github.com/videojs/hls-fetcher#readme",
   "dependencies": {
     "aes-decrypter": "^3.0.0",
     "bluebird": "^3.4.0",
