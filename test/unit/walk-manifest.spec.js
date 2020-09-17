@@ -800,6 +800,35 @@ describe('walk-manifest', function() {
           });
         });
     });
-  // end walkPlaylist
+
+    it('handles duplicate manifests', function() {
+      nock(TEST_URL)
+        .get('/master.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/duplicate-manifests/master.m3u8`)
+        .get('/manifest0/rendition.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/duplicate-manifests/manifest0/rendition.m3u8`)
+        .get('/manifest1/rendition.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/duplicate-manifests/manifest1/rendition.m3u8`)
+        .get('/manifest2/rendition.m3u8')
+        .replyWithFile(200, `${process.cwd()}/test/resources/duplicate-manifests/manifest2/rendition.m3u8`);
+
+      const options = {decrypt: false, basedir: '.', uri: TEST_URL + '/master.m3u8', requestRetryMaxAttempts: 0};
+
+      return walker(options)
+        .then(function(resources) {
+          const count = countResources({resources, extensions: ['ts', 'm3u8']});
+
+          assert.deepEqual(count, {
+            ts: 27,
+            m3u8: 4,
+            total: 31
+          });
+
+          resources.forEach(function({file}) {
+            assert(!(/\/no\/dont\/include/).test(file), 'does not have query in file path');
+          });
+        });
+    });
+    // end walkPlaylist
   });
 });

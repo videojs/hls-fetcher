@@ -221,10 +221,13 @@ const walkPlaylist = function(options) {
       manifest.file = path.join(basedir, urlBasename(uri));
     }
 
+    let existingManifest;
+
     // if we are not the master playlist
     if (dashPlaylist && parent) {
       manifest.file = parent.file;
       manifest.uri = parent.uri;
+      existingManifest = visitedUrls[manifest.uri];
     } else if (parent) {
       manifest.file = path.join(
         basedir,
@@ -236,14 +239,20 @@ const walkPlaylist = function(options) {
       if (!isAbsolute(manifest.uri)) {
         manifest.uri = joinURI(path.dirname(parent.uri), manifest.uri);
       }
+      existingManifest = visitedUrls[manifest.uri];
+
+      const file = existingManifest && existingManifest.file || manifest.file;
+      const relativePath = path.relative(path.dirname(parent.file), file);
+
       // replace original uri in file with new file path
-      parent.content = Buffer.from(parent.content.toString().replace(uri, path.relative(path.dirname(parent.file), manifest.file)));
+      parent.content = Buffer.from(parent.content.toString().replace(uri, relativePath));
     }
 
-    if (!dashPlaylist && visitedUrls.includes(manifest.uri)) {
+    if (!dashPlaylist && existingManifest) {
       console.error(`[WARN] Trying to visit the same uri again; skipping to avoid getting stuck in a cycle: ${manifest.uri}`);
       return resolve(resources);
     }
+    visitedUrls[manifest.uri] = manifest;
 
     let requestPromise;
 
@@ -270,7 +279,6 @@ const walkPlaylist = function(options) {
 
       if (!dashPlaylist) {
         resources.push(manifest);
-        visitedUrls.push(manifest.uri);
 
         manifest.content = response.body;
         if ((/^application\/dash\+xml/i).test(response.headers['content-type']) || (/^\<\?xml/i).test(response.body)) {
