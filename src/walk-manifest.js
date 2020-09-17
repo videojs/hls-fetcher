@@ -19,6 +19,15 @@ const fsSanitize = function(filepath) {
     .join(path.sep);
 };
 
+const urlBasename = function(uri) {
+  const parsed = url.parse(uri);
+  const pathname = parsed.pathname || parsed.path.replace(parsed.query || '', '');
+  const query = (parsed.query || '').split(/\\\\|\\|\//).join('!');
+  const basename = path.basename(pathname) + query;
+
+  return fsSanitize(basename);
+};
+
 const joinURI = function(absolute, relative) {
   const parse = url.parse(absolute);
 
@@ -129,7 +138,7 @@ const parseKey = function(requestOptions, basedir, decrypt, resources, manifest,
       if (parent) {
         key.file = path.dirname(parent.file);
       }
-      key.file = path.join(key.file, path.basename(fsSanitize(key.uri)));
+      key.file = path.join(key.file, urlBasename(key.uri));
 
       manifest.content = Buffer.from(manifest.content.toString().replace(
         key.uri,
@@ -207,8 +216,10 @@ const walkPlaylist = function(options) {
     let resources = [];
     const manifest = {parent};
 
-    manifest.uri = uri;
-    manifest.file = path.join(basedir, path.basename(fsSanitize(uri)));
+    if (uri) {
+      manifest.uri = uri;
+      manifest.file = path.join(basedir, urlBasename(uri));
+    }
 
     // if we are not the master playlist
     if (dashPlaylist && parent) {
@@ -216,9 +227,10 @@ const walkPlaylist = function(options) {
       manifest.uri = parent.uri;
     } else if (parent) {
       manifest.file = path.join(
-        path.dirname(parent.file),
+        basedir,
+        path.dirname(path.relative(basedir, parent.file)),
         'manifest' + manifestIndex,
-        path.basename(fsSanitize(manifest.file))
+        path.basename(manifest.file)
       );
       // get the real uri of this playlist
       if (!isAbsolute(manifest.uri)) {
@@ -298,7 +310,7 @@ const walkPlaylist = function(options) {
             return;
           }
           // put segments in manifest-name/segment-name.ts
-          s.file = path.join(path.dirname(manifest.file), path.basename(fsSanitize(s.uri)));
+          s.file = path.join(path.dirname(manifest.file), urlBasename(s.uri));
 
           if (!isAbsolute(s.uri)) {
             s.uri = joinURI(path.dirname(manifest.uri), s.uri);
