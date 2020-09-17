@@ -799,7 +799,7 @@ describe('walk-manifest', function() {
             assert(!(/\/no\/dont\/include/).test(file), 'does not have query in file path');
           });
         });
-    // end walkPlaylist
     });
+  // end walkPlaylist
   });
 });

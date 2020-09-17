@@ -22,7 +22,7 @@ const fsSanitize = function(filepath) {
 const urlBasename = function(uri) {
   const parsed = url.parse(uri);
   const pathname = parsed.pathname || parsed.path.replace(parsed.query || '', '');
-  const query = (parsed.query || '').split(/\\\\|\\|\//).join('!');
+  const query = (parsed.query || '').split(/\\\\|\\|\//).join('');
   const basename = path.basename(pathname) + query;
 
   return fsSanitize(basename);
