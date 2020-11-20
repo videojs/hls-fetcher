@@ -29,10 +29,15 @@ const urlBasename = function(uri) {
 };
 
 const joinURI = function(absolute, relative) {
-  const parse = url.parse(absolute);
+  const abs = url.parse(absolute);
+  const rel = url.parse(relative);
 
-  parse.pathname = path.resolve(parse.pathname, relative);
-  return url.format(parse);
+  abs.pathname = path.resolve(abs.pathname, rel.pathname);
+
+  abs.query = rel.query;
+  abs.hash = rel.hash;
+
+  return url.format(abs);
 };
 
 const isAbsolute = function(uri) {
@@ -271,7 +276,7 @@ const walkPlaylist = function(options) {
       if (response.statusCode !== 200) {
         const manifestError = new Error(response.statusCode + '|' + manifest.uri);
 
-        manifestError.reponse = response;
+        manifestError.reponse = {body: response.body, headers: response.headers};
         return onError(manifestError, manifest.uri, resources, resolve, reject);
       }
       // Only push manifest uris that get a non 200 and don't timeout
