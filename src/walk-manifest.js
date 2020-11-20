@@ -19,6 +19,15 @@ const fsSanitize = function(filepath) {
     .join(path.sep);
 };
 
+const urlBasename = function(uri) {
+  const parsed = url.parse(uri);
+  const pathname = parsed.pathname || parsed.path.replace(parsed.query || '', '');
+  const query = (parsed.query || '').split(/\\\\|\\|\//).join('');
+  const basename = path.basename(pathname) + query;
+
+  return fsSanitize(basename);
+};
+
 const joinURI = function(absolute, relative) {
   const parse = url.parse(absolute);
 
@@ -129,7 +138,7 @@ const parseKey = function(requestOptions, basedir, decrypt, resources, manifest,
       if (parent) {
         key.file = path.dirname(parent.file);
       }
-      key.file = path.join(key.file, path.basename(fsSanitize(key.uri)));
+      key.file = path.join(key.file, urlBasename(key.uri));
 
       manifest.content = Buffer.from(manifest.content.toString().replace(
         key.uri,
@@ -207,31 +216,43 @@ const walkPlaylist = function(options) {
     let resources = [];
     const manifest = {parent};
 
-    manifest.uri = uri;
-    manifest.file = path.join(basedir, path.basename(fsSanitize(uri)));
+    if (uri) {
+      manifest.uri = uri;
+      manifest.file = path.join(basedir, urlBasename(uri));
+    }
+
+    let existingManifest;
 
     // if we are not the master playlist
     if (dashPlaylist && parent) {
       manifest.file = parent.file;
       manifest.uri = parent.uri;
+      existingManifest = visitedUrls[manifest.uri];
     } else if (parent) {
       manifest.file = path.join(
-        path.dirname(parent.file),
+        basedir,
+        path.dirname(path.relative(basedir, parent.file)),
         'manifest' + manifestIndex,
-        path.basename(fsSanitize(manifest.file))
+        path.basename(manifest.file)
       );
       // get the real uri of this playlist
       if (!isAbsolute(manifest.uri)) {
         manifest.uri = joinURI(path.dirname(parent.uri), manifest.uri);
       }
+      existingManifest = visitedUrls[manifest.uri];
+
+      const file = existingManifest && existingManifest.file || manifest.file;
+      const relativePath = path.relative(path.dirname(parent.file), file);
+
       // replace original uri in file with new file path
-      parent.content = Buffer.from(parent.content.toString().replace(uri, path.relative(path.dirname(parent.file), manifest.file)));
+      parent.content = Buffer.from(parent.content.toString().replace(uri, relativePath));
     }
 
-    if (!dashPlaylist && visitedUrls.includes(manifest.uri)) {
+    if (!dashPlaylist && existingManifest) {
       console.error(`[WARN] Trying to visit the same uri again; skipping to avoid getting stuck in a cycle: ${manifest.uri}`);
       return resolve(resources);
     }
+    visitedUrls[manifest.uri] = manifest;
 
     let requestPromise;
 
@@ -258,7 +279,6 @@ const walkPlaylist = function(options) {
 
       if (!dashPlaylist) {
         resources.push(manifest);
-        visitedUrls.push(manifest.uri);
 
         manifest.content = response.body;
         if ((/^application\/dash\+xml/i).test(response.headers['content-type']) || (/^\<\?xml/i).test(response.body)) {
@@ -298,7 +318,7 @@ const walkPlaylist = function(options) {
             return;
           }
           // put segments in manifest-name/segment-name.ts
-          s.file = path.join(path.dirname(manifest.file), path.basename(fsSanitize(s.uri)));
+          s.file = path.join(path.dirname(manifest.file), urlBasename(s.uri));
 
           if (!isAbsolute(s.uri)) {
             s.uri = joinURI(path.dirname(manifest.uri), s.uri);
