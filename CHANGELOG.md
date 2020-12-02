@@ -1,3 +1,11 @@
+<a name="2.2.2"></a>
+## [2.2.2](https://github.com/videojs/hls-fetcher/compare/v2.2.1...v2.2.2) (2020-12-02)
+
+### Bug Fixes
+
+* better errors, correctly join uri with relative hash/query ([4024a13](https://github.com/videojs/hls-fetcher/commit/4024a13))
+* handle tilde/paths in the query string, cleanup tests ([#43](https://github.com/videojs/hls-fetcher/issues/43)) ([4a528ce](https://github.com/videojs/hls-fetcher/commit/4a528ce))
+
 <a name="2.2.1"></a>
 ## [2.2.1](https://github.com/videojs/hls-fetcher/compare/v2.2.0...v2.2.1) (2019-09-06)
 
