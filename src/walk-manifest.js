@@ -240,18 +240,19 @@ const walkPlaylist = function(options) {
         'manifest' + manifestIndex,
         path.basename(manifest.file)
       );
-      existingManifest = visitedUrls[manifest.uri];
 
       const file = existingManifest && existingManifest.file || manifest.file;
       const relativePath = path.relative(path.dirname(parent.file), file);
 
       // replace original uri in file with new file path
-      parent.content = Buffer.from(parent.content.toString().replace(uri, relativePath));
+      parent.content = Buffer.from(parent.content.toString().replace(manifest.uri, relativePath));
 
       // get the real uri of this playlist
       if (!isAbsolute(manifest.uri)) {
         manifest.uri = joinURI(path.dirname(parent.uri), manifest.uri);
       }
+
+      existingManifest = visitedUrls[manifest.uri];
     }
 
     if (!dashPlaylist && existingManifest) {
