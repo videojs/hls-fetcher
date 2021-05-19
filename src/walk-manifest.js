@@ -93,9 +93,10 @@ const collectPlaylists = function(parsed) {
 };
 
 const parseMpdManifest = function(content, srcUrl) {
-  const mpdPlaylists = mpd.toPlaylists(mpd.inheritAttributes(mpd.stringToMpdXml(content), {
+  const parsedManifestInfo = mpd.inheritAttributes(mpd.stringToMpdXml(content), {
     manifestUri: srcUrl
-  }));
+  });
+  const mpdPlaylists = mpd.toPlaylists(parsedManifestInfo.representationInfo);
 
   const m3u8Result = mpd.toM3u8(mpdPlaylists);
   const m3u8Playlists = collectPlaylists(m3u8Result);

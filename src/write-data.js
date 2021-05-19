@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 const Promise = require('bluebird');
-const mkdirp = Promise.promisify(require('mkdirp'));
+const mkdirp = require('mkdirp');
 const request = require('requestretry');
 const fs = Promise.promisifyAll(require('fs'));
 const AesDecrypter = require('aes-decrypter').Decrypter;
