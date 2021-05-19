@@ -1,3 +1,14 @@
+<a name="2.3.0"></a>
+# [2.3.0](https://github.com/videojs/hls-fetcher/compare/v2.2.2...v2.3.0) (2021-05-19)
+
+### Bug Fixes
+
+* replace relative uri before converting to absolute ([#44](https://github.com/videojs/hls-fetcher/issues/44)) ([1b08ca6](https://github.com/videojs/hls-fetcher/commit/1b08ca6))
+
+### Chores
+
+* update packages ([3010f4c](https://github.com/videojs/hls-fetcher/commit/3010f4c))
+
 <a name="2.2.2"></a>
 ## [2.2.2](https://github.com/videojs/hls-fetcher/compare/v2.2.1...v2.2.2) (2020-12-02)
 
