@@ -132,10 +132,6 @@ const parseKey = function(requestOptions, basedir, decrypt, resources, manifest,
 
     let keyUri = key.uri;
 
-    if (!isAbsolute(keyUri)) {
-      keyUri = joinURI(path.dirname(manifest.uri), keyUri);
-    }
-
     // if we are not decrypting then we just download the key
     if (!decrypt) {
       // put keys in parent-dir/key-name.key
@@ -149,6 +145,10 @@ const parseKey = function(requestOptions, basedir, decrypt, resources, manifest,
         key.uri,
         path.relative(path.dirname(manifest.file), key.file)
       ));
+
+      if (!isAbsolute(keyUri)) {
+        keyUri = joinURI(path.dirname(manifest.uri), keyUri);
+      }
       key.uri = keyUri;
       resources.push(key);
       return resolve(key);
@@ -240,17 +240,19 @@ const walkPlaylist = function(options) {
         'manifest' + manifestIndex,
         path.basename(manifest.file)
       );
-      // get the real uri of this playlist
-      if (!isAbsolute(manifest.uri)) {
-        manifest.uri = joinURI(path.dirname(parent.uri), manifest.uri);
-      }
-      existingManifest = visitedUrls[manifest.uri];
 
       const file = existingManifest && existingManifest.file || manifest.file;
       const relativePath = path.relative(path.dirname(parent.file), file);
 
       // replace original uri in file with new file path
-      parent.content = Buffer.from(parent.content.toString().replace(uri, relativePath));
+      parent.content = Buffer.from(parent.content.toString().replace(manifest.uri, relativePath));
+
+      // get the real uri of this playlist
+      if (!isAbsolute(manifest.uri)) {
+        manifest.uri = joinURI(path.dirname(parent.uri), manifest.uri);
+      }
+
+      existingManifest = visitedUrls[manifest.uri];
     }
 
     if (!dashPlaylist && existingManifest) {
@@ -325,18 +327,19 @@ const walkPlaylist = function(options) {
           // put segments in manifest-name/segment-name.ts
           s.file = path.join(path.dirname(manifest.file), urlBasename(s.uri));
 
+          if (manifest.content) {
+            manifest.content = Buffer.from(manifest.content.toString().replace(
+              s.uri,
+              path.relative(path.dirname(manifest.file), s.file)
+            ));
+          }
+
           if (!isAbsolute(s.uri)) {
             s.uri = joinURI(path.dirname(manifest.uri), s.uri);
           }
           if (key) {
             s.key = key;
             s.key.iv = s.key.iv || new Uint32Array([0, 0, 0, manifest.parsed.mediaSequence, i]);
-          }
-          if (manifest.content) {
-            manifest.content = Buffer.from(manifest.content.toString().replace(
-              s.uri,
-              path.relative(path.dirname(manifest.file), s.file)
-            ));
           }
           resources.push(s);
         });
